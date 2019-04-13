@@ -15,8 +15,8 @@ WORKDIR /app
 COPY --from=base /wheeley /wheeley
 COPY ./config /app/config
 
-RUN pip3 install --no-index --find-links=/wheeley YOUR-PACKAGE \
+RUN pip3 install --no-index --find-links=/wheeley brewblox-tilt \
     && rm -rf /wheeley \
     && pip3 freeze
 
-ENTRYPOINT ["python3", "-m", "YOUR_PACKAGE"]
+ENTRYPOINT ["python3", "-m", "brewblox_tilt"]

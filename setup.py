@@ -1,12 +1,12 @@
 from setuptools import find_packages, setup
 
 setup(
-    name='YOUR-PROJECT',
+    name='brewblox-tilt',
     version='0.1',
     long_description=open('README.md').read(),
-    url='YOUR_REPOSITORY',
-    author='YOUR NAME',
-    author_email='YOU@PROVIDER.com',
+    url='https://github.com/j616/brewblox-tilt',
+    author='James Sandford',
+    author_email='brewblox-tilt@j616s.co.uk',
     classifiers=[
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: GNU General Public License (GPL)',
@@ -14,7 +14,7 @@ setup(
         'Intended Audience :: End Users/Desktop',
         'Topic :: System :: Hardware',
     ],
-    keywords='brewing brewpi brewblox embedded plugin service',
+    keywords='brewing brewpi brewblox embedded plugin service tilt hydrometer',
     packages=find_packages(exclude=['test', 'docker']),
     install_requires=[
         'brewblox-service'
