@@ -125,7 +125,7 @@ def add_events(app: web.Application):
 
 
 def main():
-    app = service.create_app(default_name='brewblox_tilt')
+    app = service.create_app(default_name='tilt')
 
     # Init events
     add_events(app)
