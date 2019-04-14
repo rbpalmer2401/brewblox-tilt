@@ -17,7 +17,9 @@ setup(
     keywords='brewing brewpi brewblox embedded plugin service tilt hydrometer',
     packages=find_packages(exclude=['test', 'docker']),
     install_requires=[
-        'brewblox-service'
+        'brewblox-service',
+        'bluepy',
+        'pint'
     ],
     python_requires='>=3.7',
     extras_require={'dev': ['pipenv']}

@@ -19,4 +19,10 @@ RUN pip3 install --no-index --find-links=/wheeley brewblox-tilt \
     && rm -rf /wheeley \
     && pip3 freeze
 
+RUN \
+  apt-get clean && \
+  apt-get update && \
+  apt-get install -y \
+    libglib2.0-dev
+
 ENTRYPOINT ["python3", "-m", "brewblox_tilt"]

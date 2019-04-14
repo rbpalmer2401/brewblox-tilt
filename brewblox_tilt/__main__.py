@@ -1,109 +1,120 @@
 """
-Example of how to import and use the brewblox service
+Brewblox service for Tilt hydrometer
 """
-
-from typing import Union
-
+import asyncio
+from pint import UnitRegistry
+from bluepy.btle import Scanner, DefaultDelegate
 from aiohttp import web
 from brewblox_service import brewblox_logger, events, scheduler, service
 
 routes = web.RouteTableDef()
-LOGGER = brewblox_logger(__name__)
+LOGGER = brewblox_logger("brewblox_tilt")
+HISTORY_EXCHANGE = 'brewcast'
+ureg = UnitRegistry()
+Q_ = ureg.Quantity
 
 
-@routes.post('/example/endpoint')
-async def example_endpoint_handler(request: web.Request) -> web.Response:
-    """
-    Example endpoint handler. Using `routes.post` means it will only respond to POST requests.
+class ScanDelegate(DefaultDelegate):
+    def __init__(self, publisher, loop):
+        self.publisher = publisher
+        self.loop = loop
+        DefaultDelegate.__init__(self)
 
-    When trying it out, it will echo whatever you send.
+    def decodeData(self, data):
+        # Tilt uses a similar data layout to iBeacons accross manufacturer data
+        # hex digits 8 - 50. Digits 8-40 contain the ID of the "colour" of the
+        # device. Digits 40-44 contain the temperature in f as an integer.
+        # Digits 44-48 contain the specific gravity * 1000 (i.e. the "points)
+        # as an integer.
 
-    Each aiohttp endpoint should take a request as argument, and return a response.
-    You can add Swagger documentation in this docstring, or by adding a yaml file.
-    See http://aiohttp-swagger.readthedocs.io/en/latest/ for more details
+        ids = {
+            "a495bb10c5b14b44b5121370f02d74de": "Red",
+            "a495bb20c5b14b44b5121370f02d74de": "Green",
+            "a495bb30c5b14b44b5121370f02d74de": "Black",
+            "a495bb40c5b14b44b5121370f02d74de": "Purple",
+            "a495bb50c5b14b44b5121370f02d74de": "Orange",
+            "a495bb60c5b14b44b5121370f02d74de": "Blue",
+            "a495bb70c5b14b44b5121370f02d74de": "Yellow",
+            "a495bb80c5b14b44b5121370f02d74de": "Pink"
+        }
 
-    ---
-    tags:
-    - Example
-    summary: Example endpoint.
-    description: An example of how to use aiohttp features.
-    operationId: example.endpoint
-    produces:
-    - text/plain
-    parameters:
-    -
-        in: body
-        name: body
-        description: Input message
-        required: false
-        schema:
-            type: string
-    """
-    input = await request.text()
-    return web.Response(body=f'Hello world! (You said: "{input}")')
+        uuid = data[8:40]
+        colour = ids.get(uuid, None)
+
+        temp_f = int(data[40:44], 16)
+
+        raw_sg = int(data[44:48], 16)
+        sg = raw_sg/1000
+
+        return {
+            "colour": colour,
+            "temp_f": temp_f,
+            "sg": sg
+        }
+
+    def handleData(self, data, rssi):
+        decodedData = self.decodeData(data)
+        temp_c = Q_(decodedData["temp_f"], ureg.degF).to('degC').magnitude
+
+        # Calback is from sync code so we need to wrap publish back up in the
+        # async loop
+        asyncio.ensure_future(
+            self.publisher.publish(
+                HISTORY_EXCHANGE,
+                "tilt.{}".format(decodedData["colour"]),
+                {
+                    'Temperature[degF]': decodedData["temp_f"],
+                    'Temperature[degC]': temp_c,
+                    'Specific gravity': decodedData["sg"],
+                    'Signal strength[dBm]': rssi
+                }),
+            loop=self.loop)
+
+        LOGGER.debug("colour: {}, temp: {}, sg: {}, signal strenght:{}".format(
+            decodedData["colour"],
+            decodedData["temp_f"],
+            decodedData["sg"],
+            rssi))
+
+    def handleDiscovery(self, dev, isNewDev, isNewData):
+        data = {}
+        for (adtype, desc, value) in dev.getScanData():
+            data[desc] = value
+
+        # Check if message is from a tilt device
+        if data.get("Complete Local Name", None) == "Tilt":
+            # Check if Manufacturer data exists (it doesn't always)
+            if "Manufacturer" in data:
+                self.handleData(data["Manufacturer"], dev.rssi)
 
 
-async def on_message(subscription: events.EventSubscription, key: str, message: Union[dict, str]):
-    """Example message handler for RabbitMQ events.
+class TiltScanner():
+    def __init__(self, app):
+        self.publisher = events.get_publisher(app)
+        self.scanner = None
+        self.running = False
 
-    Services can choose to publish / subscribe events to communicate between them.
-    These events are for loose communication: you broadcast something,
-    and don't really care by whom it gets picked up.
+    async def stop(self, app):
+        self.running = False
 
-    When subscribing to an event, you provide a callback (example: this function)
-    that will be called every time a relevant event is published.
+    def blockingScanner(self):
+        # In theory, this could just be a single start() & multiple process()
+        # Unfortunately, that seems less reliable at returning data.
+        # The Tilt updates every 5s so we just run a 5sec scan repeatedly.
+        # This seems pretty reliable
+        while self.running:
+            self.scanner.scan(timeout=5)
 
-    Args:
-        subscription (events.EventSubscription):
-            The subscription that triggered this callback.
-
-        key (str): The routing key of the published event.
-            This will always be specific - no wildcards.
-
-        message (dict | str): The content of the event.
-            If it was a JSON message, this is a dict. String otherwise.
-
-    """
-    LOGGER.info(f'Message from {subscription}: {key} = {message} ({type(message)})')
+    async def run(self, app):
+        self.running = True
+        loop = asyncio.get_running_loop()
+        self.scanner = Scanner().withDelegate(
+            ScanDelegate(self.publisher, loop))
+        await loop.run_in_executor(
+            None, self.blockingScanner)
 
 
 def add_events(app: web.Application):
-    """Add event handling
-
-    Subscriptions can be made at any time using `EventListener.subscribe()`.
-    They will be declared on the remote amqp server whenever the listener is connected.
-
-    Message interest can be specified by setting exchange name, and routing key.
-
-    For `direct` and `fanout` exchanges, messages must match routing key exactly.
-    For `topic` exchanges (the default), routing keys can be multiple values, separated with dots (.).
-    Routing keys can use regex and wildcards.
-
-    The simple wildcards are `*` and `#`.
-
-    `*` matches a single level.
-
-    "controller.*.sensor" subscriptions will receive (example) routing keys:
-    - controller.block.sensor
-    - controller.container.sensor
-
-    But not:
-    - controller
-    - controller.nested.block.sensor
-    - controller.block.sensor.nested
-
-    `#` is a greedier wildcard: it will match as few or as many values as it can
-    Plain # subscriptions will receive all messages published to that exchange.
-
-    A subscription of "controller.#" will receive:
-    - controller
-    - controller.block.sensor
-    - controller.container.nested.sensor
-
-    For more information on this, see https://www.rabbitmq.com/tutorials/tutorial-four-python.html
-    and https://www.rabbitmq.com/tutorials/tutorial-five-python.html
-    """
-
     # Enable the task scheduler
     # This is required for the `events` feature
     scheduler.setup(app)
@@ -112,21 +123,12 @@ def add_events(app: web.Application):
     # Event subscription / publishing will be enabled after you call this function
     events.setup(app)
 
-    # Get the standard event listener
-    # This can be used to register as many subscriptions as you want
-    listener = events.get_listener(app)
-
-    # Subscribe to all events on 'brewblox' exchange
-    listener.subscribe('brewblox', '#', on_message=on_message)
-
 
 def main():
-    app = service.create_app(default_name='YOUR_PACKAGE')
+    app = service.create_app(default_name='brewblox_tilt')
 
+    # Init events
     add_events(app)
-
-    # Register routes in this file (/example/endpoint in our case)
-    app.router.add_routes(routes)
 
     # Add all default endpoints, and adds prefix to all endpoints
     #
@@ -138,10 +140,11 @@ def main():
     # To change the prefix, you can use the --name command line argument.
     #
     # See brewblox_service.service for more details on how arguments are parsed.
-    #
-    # The default value is "YOUR_PACKAGE" (provided in service.create_app()).
-    # This means you can now access the example/endpoint as "/YOUR_PACKAGE/example/endpoint"
     service.furnish(app)
+
+    tiltScan = TiltScanner(app)
+    app.on_startup.append(tiltScan.run)
+    app.on_cleanup.append(tiltScan.stop)
 
     # service.run() will start serving clients async
     service.run(app)
