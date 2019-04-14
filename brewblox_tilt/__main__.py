@@ -70,7 +70,7 @@ class ScanDelegate(DefaultDelegate):
                 }),
             loop=self.loop)
 
-        LOGGER.debug("colour: {}, temp: {}, sg: {}, signal strenght:{}".format(
+        LOGGER.info("colour: {}, temp: {}, sg: {}, signal strenght:{}".format(
             decodedData["colour"],
             decodedData["temp_f"],
             decodedData["sg"],
