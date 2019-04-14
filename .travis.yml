@@ -45,7 +45,7 @@ deploy:
   - provider: script
     script: bbt-localbuild
       --arch amd arm
-      --tags $(brewblox.tag)
+      --tags latest $(git describe --tags)
       --push
     skip_cleanup: true
     on:
