@@ -52,6 +52,20 @@ class ScanDelegate(DefaultDelegate):
             "sg": sg
         }
 
+    async def publishData(self, colour, temp_f, temp_c, sg, rssi):
+        try:
+            await self.publisher.publish(
+                HISTORY_EXCHANGE,
+                "tilt.{}".format(colour),
+                {
+                    'Temperature[degF]': temp_f,
+                    'Temperature[degC]': temp_c,
+                    'Specific gravity': sg,
+                    'Signal strength[dBm]': rssi
+                })
+        except Exception as e:
+            LOGGER.error(e)
+
     def handleData(self, data, rssi):
         decodedData = self.decodeData(data)
         temp_c = Q_(decodedData["temp_f"], ureg.degF).to('degC').magnitude
@@ -59,15 +73,12 @@ class ScanDelegate(DefaultDelegate):
         # Calback is from sync code so we need to wrap publish back up in the
         # async loop
         asyncio.ensure_future(
-            self.publisher.publish(
-                HISTORY_EXCHANGE,
-                "tilt.{}".format(decodedData["colour"]),
-                {
-                    'Temperature[degF]': decodedData["temp_f"],
-                    'Temperature[degC]': temp_c,
-                    'Specific gravity': decodedData["sg"],
-                    'Signal strength[dBm]': rssi
-                }),
+            self.publishData(
+                decodedData["colour"],
+                decodedData["temp_f"],
+                temp_c,
+                decodedData["sg"],
+                rssi),
             loop=self.loop)
 
         LOGGER.info("colour: {}, temp: {}, sg: {}, signal strenght:{}".format(
