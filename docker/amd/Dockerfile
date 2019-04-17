@@ -9,7 +9,7 @@ RUN pip3 install wheel \
     && pip3 wheel --wheel-dir=/wheeley --find-links=/wheeley --no-index /app/dist/*
 
 FROM python:3.7-slim
-EXPOSE 5000
+EXPOSE 5001
 WORKDIR /app
 
 COPY --from=base /wheeley /wheeley
