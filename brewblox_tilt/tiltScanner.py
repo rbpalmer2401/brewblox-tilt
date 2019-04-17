@@ -159,7 +159,7 @@ class TiltScanner(features.ServiceFeature):
 
         listener = events.get_listener(self.app)
         listener.subscribe('brewcast',
-                           self.app['config']['name'],
+                           "*",
                            on_message=self.on_message)
 
         await loop.run_in_executor(
