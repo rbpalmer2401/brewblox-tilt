@@ -95,7 +95,7 @@ class ScanDelegate(DefaultDelegate):
                 rssi),
             loop=self.loop)
 
-        LOGGER.info("colour: {}, temp: {}, sg: {}, signal strenght:{}".format(
+        LOGGER.debug("colour: {}, temp: {}, sg: {}, signal strenght:{}".format(
             decodedData["colour"],
             decodedData["temp_f"],
             decodedData["sg"],
@@ -147,20 +147,12 @@ class TiltScanner(features.ServiceFeature):
                 LOGGER.error(f'Encountered an error: {ex}')
                 sleep(1)
 
-    async def on_message(self, subscription, key, message):
-        print(f'Message from {subscription}: {key} = {message} ({type(message)})')
-
     async def _run(self):
         loop = asyncio.get_running_loop()
         self.scanner = Scanner().withDelegate(
             ScanDelegate(self.app, loop))
 
         LOGGER.info('Started TiltScanner')
-
-        listener = events.get_listener(self.app)
-        listener.subscribe('brewcast',
-                           "*",
-                           on_message=self.on_message)
 
         await loop.run_in_executor(
             None, self._blockingScanner)
