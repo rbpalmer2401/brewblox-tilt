@@ -40,6 +40,12 @@ eventbus:
         - "5672:5672"
 ```
 
+Finally, you'll have to bring up the new service using
+
+```bash
+brewblox-ctl up
+```
+
 ### Add to your graphs
 
 Once the Tilt service receives data from your Tilt(s), it should be available as graph metrics in brewblox.
