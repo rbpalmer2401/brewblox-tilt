@@ -16,15 +16,13 @@ You need to add the service to your existing BrewBlox docker compose file.
 
 ```yaml
 tilt:
-    image: j616s/brewblox-tilt:rpi-latest
+    image: j616s/brewblox-tilt:rpi-develop
     restart: unless-stopped
     privileged: true
     depends_on:
         - history
-    labels:
-        - "traefik.port=5000"
-        - "traefik.frontend.rule=PathPrefix: /tilt"
     network_mode: host
+    command: -p 5001
 ```
 
 The brewblox-tilt docker images are available on docker hub.
