@@ -25,4 +25,4 @@ RUN \
   apt-get install -y \
     libglib2.0-dev
 
-ENTRYPOINT ["python3", "-m", "brewblox_tilt"]
+ENTRYPOINT ["python3", "-m", "brewblox_tilt", "-p", "5001"]
