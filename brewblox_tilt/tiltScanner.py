@@ -23,10 +23,13 @@ def setup(app):
 
 
 class ScanDelegate(DefaultDelegate):
-    def __init__(self, publisher, loop):
-        self.publisher = publisher
+    def __init__(self, app, loop):
+        self.app = app
         self.loop = loop
+
+        self.publisher = events.get_publisher(self.app)
         self.name = self.app['config']['name']  # The unique service name
+
         DefaultDelegate.__init__(self)
 
     def decodeData(self, data):
@@ -145,10 +148,9 @@ class TiltScanner(features.ServiceFeature):
                 sleep(1)
 
     async def _run(self):
-        publisher = events.get_publisher(self.app)
         loop = asyncio.get_running_loop()
         self.scanner = Scanner().withDelegate(
-            ScanDelegate(publisher, loop))
+            ScanDelegate(self.app, loop))
 
         LOGGER.info('Started TiltScanner')
 
