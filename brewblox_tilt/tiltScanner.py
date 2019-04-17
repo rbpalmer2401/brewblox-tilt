@@ -147,7 +147,7 @@ class TiltScanner(features.ServiceFeature):
                 LOGGER.error(f'Encountered an error: {ex}')
                 sleep(1)
 
-    async def on_message(subscription, key, message):
+    async def on_message(self, subscription, key, message):
         print(f'Message from {subscription}: {key} = {message} ({type(message)})')
 
     async def _run(self):
@@ -158,7 +158,9 @@ class TiltScanner(features.ServiceFeature):
         LOGGER.info('Started TiltScanner')
 
         listener = events.get_listener(self.app)
-        listener.subscribe('brewcast', self.app['config']['name'], on_message=on_message)
+        listener.subscribe('brewcast',
+                           self.app['config']['name'],
+                           on_message=self.on_message)
 
         await loop.run_in_executor(
             None, self._blockingScanner)
