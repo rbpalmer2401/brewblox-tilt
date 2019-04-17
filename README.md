@@ -14,7 +14,7 @@ You need to add the service to your existing BrewBlox docker compose file.
 
 ```yaml
 tilt:
-    image: j616s/brewblox-tilt:rpi-develop
+    image: j616s/brewblox-tilt:rpi-latest
     restart: unless-stopped
     privileged: true
     depends_on:
@@ -22,6 +22,13 @@ tilt:
     network_mode: host
     command: -p 5001 --eventbus-host=172.17.0.1
 ```
+
+The brewblox-tilt docker images are available on docker hub.
+
+Note that the image tag to use is:
+
+-   rpi-latest for the arm architecture (when deploying on a RaspberryPi)
+-   latest for the amd architecture
 
 You'll also need to modify the eventbus entry in your existing BrewBlox docker compose file to look like this.
 
@@ -32,13 +39,6 @@ eventbus:
     ports:
         - "5672:5672"
 ```
-
-The brewblox-tilt docker images are available on docker hub.
-
-Note that the image tag to use is:
-
--   rpi-latest for the arm architecture (when deploying on a RaspberryPi)
--   latest for the amd architecture
 
 ### Add to your graphs
 
