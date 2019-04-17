@@ -1,7 +1,5 @@
 # BrewBlox Service for the Tilt Hydrometer
 
-**This service is work in progress and is not currently functional**
-
 The [Tilt hydrometer](https://tilthydrometer.com/) is a wireless hydrometer and thermometer used to gather live readings of specific gravity and temperature when brewing beer.
 
 [Brewblox](https://brewpi.com/) is a modular brewery control system design to work with the BrewPi controller.
@@ -22,7 +20,17 @@ tilt:
     depends_on:
         - history
     network_mode: host
-    command: -p 5001
+    command: -p 5001 --eventbus-host=172.17.0.1
+```
+
+You'll also need to modify the eventbus entry in your existing BrewBlox docker compose file to look like this.
+
+```yaml
+eventbus:
+    image: arm32v6/rabbitmq:alpine
+    restart: unless-stopped
+    ports:
+        - "5672:5672"
 ```
 
 The brewblox-tilt docker images are available on docker hub.
