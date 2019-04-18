@@ -27,6 +27,7 @@ class ScanDelegate(DefaultDelegate):
         self.app = app
         self.loop = loop
         self.tiltsFound = set()
+        self.noDevicesFound = True
 
         self.publisher = events.get_publisher(self.app)
         self.name = self.app['config']['name']  # The unique service name
@@ -109,6 +110,11 @@ class ScanDelegate(DefaultDelegate):
 
     def handleDiscovery(self, dev, isNewDev, isNewData):
         data = {}
+
+        if self.noDevicesFound:
+            self.noDevicesFound = False
+            LOGGER.info("Loop running & device found (may not be a Tilt)")
+
         for (adtype, desc, value) in dev.getScanData():
             data[desc] = value
 
