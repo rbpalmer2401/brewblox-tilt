@@ -26,6 +26,7 @@ class ScanDelegate(DefaultDelegate):
     def __init__(self, app, loop):
         self.app = app
         self.loop = loop
+        self.tiltsFound = set()
 
         self.publisher = events.get_publisher(self.app)
         self.name = self.app['config']['name']  # The unique service name
@@ -82,6 +83,11 @@ class ScanDelegate(DefaultDelegate):
 
     def handleData(self, data, rssi):
         decodedData = self.decodeData(data)
+
+        if decodedData["colour"] not in self.tiltsFound:
+            self.tiltsFound.add(decodedData["colour"])
+            LOGGER.info("Found Tilt: {}".format(decodedData["colour"]))
+
         temp_c = Q_(decodedData["temp_f"], ureg.degF).to('degC').magnitude
 
         # Calback is from sync code so we need to wrap publish back up in the
