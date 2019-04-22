@@ -2,6 +2,9 @@
 Brewblox service for Tilt hydrometer
 """
 import asyncio
+import csv
+import os.path
+import numpy as np
 from pint import UnitRegistry
 from bluepy.btle import Scanner, DefaultDelegate
 from aiohttp import web
@@ -16,10 +19,71 @@ LOGGER = brewblox_logger("brewblox_tilt")
 HISTORY_EXCHANGE = 'brewcast'
 ureg = UnitRegistry()
 Q_ = ureg.Quantity
+IDS = {
+    "a495bb10c5b14b44b5121370f02d74de": "Red",
+    "a495bb20c5b14b44b5121370f02d74de": "Green",
+    "a495bb30c5b14b44b5121370f02d74de": "Black",
+    "a495bb40c5b14b44b5121370f02d74de": "Purple",
+    "a495bb50c5b14b44b5121370f02d74de": "Orange",
+    "a495bb60c5b14b44b5121370f02d74de": "Blue",
+    "a495bb70c5b14b44b5121370f02d74de": "Yellow",
+    "a495bb80c5b14b44b5121370f02d74de": "Pink"
+    }
+SG_CAL_FILE_PATH = '/share/SGCal.csv'
+TEMP_CAL_FILE_PATH = '/share/tempCal.csv'
 
 
 def setup(app):
     features.add(app, TiltScanner(app))
+
+
+class Calibrator():
+    def __init__(self, file):
+        self.calTables = {}
+        self.calPolys = {}
+        self.loadFile(file)
+
+    def loadFile(self, file):
+        if not os.path.exists(file):
+            LOGGER.warning("Calibration file not found: {}".format(
+                file))
+            return
+
+        # Load calibration CSV
+        with open(file, 'r') as f:
+            reader = csv.reader(f)
+            for colour, uncal, cal in reader:
+                if colour not in IDS.values():
+                    LOGGER.warning(
+                        "Unknown tilt colour '{}'. Ignoring line.".format(
+                            colour))
+
+                if colour not in self.calTables:
+                    self.calTables[colour] = {
+                        "uncal": [],
+                        "cal": []
+                    }
+
+                self.calTables[colour]["uncal"].push(float(uncal))
+                self.calTables[colour]["cal"].push(float(cal))
+
+        # Use polyfit to fit a cubic polynomial curve to calibration values
+        # Then create a polynomical from the values produced by polyfit
+        for colour in self.calTables:
+            x = np.array(self.calTables[colour]["uncal"])
+            y = np.array(self.calTables[colour]["cal"])
+            z = np.polyfit(x, y, 3)
+            self.calPolys[colour] = np.poly1d(z)
+
+        LOGGER.info("Calibration file loaded for colours: {}".format(
+            ", ".join(self.calPolys.keys())))
+
+    def calValue(self, colour, value):
+        # Use polynomials calculated above to calibrate values
+        if colour in self.calPolys:
+            return self.calPolys[colour](value)
+        else:
+            return None
 
 
 class ScanDelegate(DefaultDelegate):
@@ -28,6 +92,9 @@ class ScanDelegate(DefaultDelegate):
         self.loop = loop
         self.tiltsFound = set()
         self.noDevicesFound = True
+
+        self.sgCal = Calibrator(SG_CAL_FILE_PATH)
+        self.tempCal = Calibrator(TEMP_CAL_FILE_PATH)
 
         self.publisher = events.get_publisher(self.app)
         self.name = self.app['config']['name']  # The unique service name
@@ -40,21 +107,6 @@ class ScanDelegate(DefaultDelegate):
         # device. Digits 40-44 contain the temperature in f as an integer.
         # Digits 44-48 contain the specific gravity * 1000 (i.e. the "points)
         # as an integer.
-        ids = {
-            "a495bb10c5b14b44b5121370f02d74de": "Red",
-            "a495bb20c5b14b44b5121370f02d74de": "Green",
-            "a495bb30c5b14b44b5121370f02d74de": "Black",
-            "a495bb40c5b14b44b5121370f02d74de": "Purple",
-            "a495bb50c5b14b44b5121370f02d74de": "Orange",
-            "a495bb60c5b14b44b5121370f02d74de": "Blue",
-            "a495bb70c5b14b44b5121370f02d74de": "Yellow",
-            "a495bb80c5b14b44b5121370f02d74de": "Pink"
-        }
-
-        if len(data) != 50:
-            # Data we're looking for is 50 hex digits long
-            return
-
         uuid = data[8:40]
         colour = ids.get(uuid, None)
 
@@ -73,19 +125,33 @@ class ScanDelegate(DefaultDelegate):
             "sg": sg
         }
 
-    async def publishData(self, colour, temp_f, temp_c, sg, rssi):
+    async def publishData(self,
+                          colour,
+                          temp_f,
+                          cal_temp_f,
+                          temp_c,
+                          cal_temp_c,
+                          sg,
+                          cal_sg,
+                          rssi):
+        message = {colour: {
+            'Temperature[degF]': temp_f,
+            'Temperature[degC]': temp_c,
+            'Specific gravity': sg,
+            'Signal strength[dBm]': rssi
+            }}
+
+        if cal_temp_f is not None:
+            message[colour]['Calibrated temperature[degF]'] = cal_temp_f
+        if cal_temp_c is not None:
+            message[colour]['Calibrated temperature[degC]'] = cal_temp_c
+        if cal_sg is not None:
+            message[colour]['Calibrated specific gravity'] = cal_sg
         try:
             await self.publisher.publish(
                 exchange='brewcast',  # brewblox-history listens to this
                 routing=self.name,
-                message={
-                    colour: {
-                        'Temperature[degF]': temp_f,
-                        'Temperature[degC]': temp_c,
-                        'Specific gravity': sg,
-                        'Signal strength[dBm]': rssi
-                    }
-                })
+                message=message)
         except Exception as e:
             LOGGER.error(e)
 
@@ -97,8 +163,16 @@ class ScanDelegate(DefaultDelegate):
         if decodedData["colour"] not in self.tiltsFound:
             self.tiltsFound.add(decodedData["colour"])
             LOGGER.info("Found Tilt: {}".format(decodedData["colour"]))
-
+            
+        cal_sg = self.sgCal.cal(
+            decodedData["colour"], decodedData["sg"])
         temp_c = Q_(decodedData["temp_f"], ureg.degF).to('degC').magnitude
+
+        cal_temp_f = self.sgCal.cal(
+            decodedData["colour"], decodedData["temp_f"])
+        cal_temp_c = None
+        if cal_temp_f is not None:
+            cal_temp_c = Q_(cal_temp_f, ureg.degF).to('degC').magnitude
 
         # Calback is from sync code so we need to wrap publish back up in the
         # async loop
@@ -106,8 +180,11 @@ class ScanDelegate(DefaultDelegate):
             self.publishData(
                 decodedData["colour"],
                 decodedData["temp_f"],
+                cal_temp_f,
                 temp_c,
+                cal_temp_c,
                 decodedData["sg"],
+                cal_sg,
                 rssi),
             loop=self.loop)
 

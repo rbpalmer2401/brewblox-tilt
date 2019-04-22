@@ -23,6 +23,7 @@ RUN \
   apt-get clean && \
   apt-get update && \
   apt-get install -y \
-    libglib2.0-dev
+    libglib2.0-dev \
+    libatlas3-base
 
 ENTRYPOINT ["python3", "-m", "brewblox_tilt"]

@@ -19,7 +19,8 @@ setup(
     install_requires=[
         'brewblox-service',
         'bluepy',
-        'pint'
+        'pint',
+        'numpy'
     ],
     python_requires='>=3.7',
     extras_require={'dev': ['pipenv']}
