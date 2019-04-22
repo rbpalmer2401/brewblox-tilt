@@ -40,7 +40,6 @@ class ScanDelegate(DefaultDelegate):
         # device. Digits 40-44 contain the temperature in f as an integer.
         # Digits 44-48 contain the specific gravity * 1000 (i.e. the "points)
         # as an integer.
-
         ids = {
             "a495bb10c5b14b44b5121370f02d74de": "Red",
             "a495bb20c5b14b44b5121370f02d74de": "Green",
@@ -52,8 +51,16 @@ class ScanDelegate(DefaultDelegate):
             "a495bb80c5b14b44b5121370f02d74de": "Pink"
         }
 
+        if len(data) != 50:
+            # Data we're looking for is 50 hex digits long
+            return
+
         uuid = data[8:40]
         colour = ids.get(uuid, None)
+
+        if colour is None:
+            # UUID is not for a Tilt
+            return None
 
         temp_f = int(data[40:44], 16)
 
@@ -84,6 +91,8 @@ class ScanDelegate(DefaultDelegate):
 
     def handleData(self, data, rssi):
         decodedData = self.decodeData(data)
+        if decodedData is None:
+            return
 
         if decodedData["colour"] not in self.tiltsFound:
             self.tiltsFound.add(decodedData["colour"])
@@ -118,11 +127,9 @@ class ScanDelegate(DefaultDelegate):
         for (adtype, desc, value) in dev.getScanData():
             data[desc] = value
 
-        # Check if message is from a tilt device
-        if data.get("Complete Local Name", None) == "Tilt":
-            # Check if Manufacturer data exists (it doesn't always)
-            if "Manufacturer" in data:
-                self.handleData(data["Manufacturer"], dev.rssi)
+        # Data we want is in Manufacturer
+        if "Manufacturer" in data:
+            self.handleData(data["Manufacturer"], dev.rssi)
 
 
 class TiltScanner(features.ServiceFeature):
