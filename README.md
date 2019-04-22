@@ -50,6 +50,26 @@ brewblox-ctl up
 
 Once the Tilt service receives data from your Tilt(s), it should be available as graph metrics in brewblox.
 
+## Development
+
+You can build a docker container for x86 using the following:
+
+```bash
+bbt-localbuild
+```
+
+Or for ARM using the following:
+
+```bash
+bbt-localbuild --arch arm
+```
+
+You can then run this container using the following:
+
+```bash
+docker run --net=host --privileged j616s/brewblox-tilt:local
+```
+
 ## TODO
 
 -   Allow calibration of temperature and SG values
