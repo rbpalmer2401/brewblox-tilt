@@ -117,14 +117,23 @@ class ScanDelegate(DefaultDelegate):
         self.loop = loop
         self.tiltsFound = set()
         self.noDevicesFound = True
+        self.message = {}
 
         self.sgCal = Calibrator(SG_CAL_FILE_PATH)
         self.tempCal = Calibrator(TEMP_CAL_FILE_PATH)
 
-        self.publisher = events.get_publisher(self.app)
-        self.name = self.app['config']['name']  # The unique service name
-
         DefaultDelegate.__init__(self)
+
+    def getMessage(self):
+        return self.message
+
+    def clearMessage(self):
+        self.message = {}
+
+    def popMessage(self):
+        message = self.getMessage()
+        self.clearMessage()
+        return message
 
     def decodeData(self, data):
         # Tilt uses a similar data layout to iBeacons accross manufacturer data
@@ -150,38 +159,30 @@ class ScanDelegate(DefaultDelegate):
             "sg": sg
         }
 
-    async def publishData(self,
-                          colour,
-                          temp_f,
-                          cal_temp_f,
-                          temp_c,
-                          cal_temp_c,
-                          sg,
-                          cal_sg,
-                          rssi):
-        message = {colour: {
+    def publishData(self,
+                    colour,
+                    temp_f,
+                    cal_temp_f,
+                    temp_c,
+                    cal_temp_c,
+                    sg,
+                    cal_sg,
+                    rssi):
+        self.message[colour] = {
             'Temperature[degF]': temp_f,
             'Temperature[degC]': temp_c,
             'Specific gravity': sg,
             'Signal strength[dBm]': rssi
-            }}
+            }
 
         if cal_temp_f is not None:
-            message[colour]['Calibrated temperature[degF]'] = cal_temp_f
+            self.message[colour]['Calibrated temperature[degF]'] = cal_temp_f
         if cal_temp_c is not None:
-            message[colour]['Calibrated temperature[degC]'] = cal_temp_c
+            self.message[colour]['Calibrated temperature[degC]'] = cal_temp_c
         if cal_sg is not None:
-            message[colour]['Calibrated specific gravity'] = cal_sg
+            self.message[colour]['Calibrated specific gravity'] = cal_sg
 
-        LOGGER.debug(message)
-
-        try:
-            await self.publisher.publish(
-                exchange='brewcast',  # brewblox-history listens to this
-                routing=self.name,
-                message=message)
-        except Exception as e:
-            LOGGER.error(e)
+        LOGGER.debug(self.message[colour])
 
     def handleData(self, data, rssi):
         decodedData = self.decodeData(data)
@@ -203,19 +204,15 @@ class ScanDelegate(DefaultDelegate):
         cal_sg = self.sgCal.calValue(
             decodedData["colour"], decodedData["sg"], 3)
 
-        # Calback is from sync code so we need to wrap publish back up in the
-        # async loop
-        asyncio.ensure_future(
-            self.publishData(
-                decodedData["colour"],
-                decodedData["temp_f"],
-                cal_temp_f,
-                temp_c,
-                cal_temp_c,
-                decodedData["sg"],
-                cal_sg,
-                rssi),
-            loop=self.loop)
+        self.publishData(
+            decodedData["colour"],
+            decodedData["temp_f"],
+            cal_temp_f,
+            temp_c,
+            cal_temp_c,
+            decodedData["sg"],
+            cal_sg,
+            rssi)
 
     def handleDiscovery(self, dev, isNewDev, isNewData):
         data = {}
@@ -237,6 +234,7 @@ class TiltScanner(features.ServiceFeature):
         super().__init__(app)
         self._task: asyncio.Task = None
         self.scanner = None
+        self.scanDelegate = None
 
     async def startup(self, app: web.Application):
         self._task = await scheduler.create_task(app, self._run())
@@ -247,17 +245,49 @@ class TiltScanner(features.ServiceFeature):
         self._task = None
 
     def _blockingScanner(self):
+        try:
+            # In theory, this could just be a single start() & multiple
+            # process() Unfortunately, that seems less reliable at
+            # returning data. The Tilt updates every 5s so we just run a
+            # 6sec scan repeatedly. This seems pretty reliable
+            self.scanner.scan(timeout=6)
+
+        # This exception is raised when the task is cancelled
+        # (scheduler.cancel_task()). It means we're gracefully shutting
+        # down. No need to complain or log errors.
+        except CancelledError:
+            return
+
+        # All other errors are still errors - something bad happened
+        # Wait a second, and then continue running
+        except Exception as ex:
+            LOGGER.error(f'Encountered an error: {ex}')
+            sleep(1)
+
+    async def _run(self):
+        loop = asyncio.get_running_loop()
+        publisher = events.get_publisher(self.app)
+        name = self.app['config']['name']  # The unique service name
+
+        self.scanDelegate = ScanDelegate(self.app, loop)
+        self.scanner = Scanner().withDelegate(
+            self.scanDelegate)
+
+        LOGGER.info('Started TiltScanner')
+
         while True:
             try:
-                # In theory, this could just be a single start() & multiple
-                # process() Unfortunately, that seems less reliable at
-                # returning data. The Tilt updates every 5s so we just run a
-                # 5sec scan repeatedly. This seems pretty reliable
-                self.scanner.scan(timeout=5)
+                await loop.run_in_executor(
+                    None, self._blockingScanner)
 
-            # This exception is raised when the task is cancelled
-            # (scheduler.cancel_task()). It means we're gracefully shutting
-            # down. No need to complain or log errors.
+                message = self.scanDelegate.popMessage()
+                if message != {}:
+                    LOGGER.debug(message)
+                    await publisher.publish(
+                        exchange='brewcast',  # brewblox-history's exchange'
+                        routing=name,
+                        message=message)
+
             except CancelledError:
                 break
 
@@ -266,13 +296,3 @@ class TiltScanner(features.ServiceFeature):
             except Exception as ex:
                 LOGGER.error(f'Encountered an error: {ex}')
                 sleep(1)
-
-    async def _run(self):
-        loop = asyncio.get_running_loop()
-        self.scanner = Scanner().withDelegate(
-            ScanDelegate(self.app, loop))
-
-        LOGGER.info('Started TiltScanner')
-
-        await loop.run_in_executor(
-            None, self._blockingScanner)
