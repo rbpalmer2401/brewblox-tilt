@@ -249,8 +249,8 @@ class TiltScanner(features.ServiceFeature):
             # In theory, this could just be a single start() & multiple
             # process() Unfortunately, that seems less reliable at
             # returning data. The Tilt updates every 5s so we just run a
-            # 11sec scan repeatedly. This seems pretty reliable
-            self.scanner.scan(timeout=11)
+            # 6sec scan repeatedly. This seems pretty reliable
+            self.scanner.scan(timeout=6)
 
         # This exception is raised when the task is cancelled
         # (scheduler.cancel_task()). It means we're gracefully shutting
