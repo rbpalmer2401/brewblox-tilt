@@ -7,6 +7,7 @@ name = "pypi"
 brewblox-service = ">=0.15.0"
 bluepy = "*"
 pint = "*"
+numpy = "*"
 
 [dev-packages]
 pytest-flake8 = "*"

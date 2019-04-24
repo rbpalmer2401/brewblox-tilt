@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='brewblox-tilt',
-    version='1.0.2',
+    version='1.1.1',
     long_description=open('README.md').read(),
     url='https://github.com/j616/brewblox-tilt',
     author='James Sandford',
@@ -19,7 +19,8 @@ setup(
     install_requires=[
         'brewblox-service',
         'bluepy',
-        'pint'
+        'pint',
+        'numpy'
     ],
     python_requires='>=3.7',
     extras_require={'dev': ['pipenv']}
