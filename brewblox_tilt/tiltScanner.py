@@ -19,6 +19,7 @@ LOGGER = brewblox_logger("brewblox_tilt")
 HISTORY_EXCHANGE = 'brewcast'
 ureg = UnitRegistry()
 Q_ = ureg.Quantity
+
 IDS = {
     "a495bb10c5b14b44b5121370f02d74de": "Red",
     "a495bb20c5b14b44b5121370f02d74de": "Green",
@@ -29,6 +30,7 @@ IDS = {
     "a495bb70c5b14b44b5121370f02d74de": "Yellow",
     "a495bb80c5b14b44b5121370f02d74de": "Pink"
     }
+
 SG_CAL_FILE_PATH = '/share/SGCal.csv'
 TEMP_CAL_FILE_PATH = '/share/tempCal.csv'
 
@@ -45,18 +47,40 @@ class Calibrator():
 
     def loadFile(self, file):
         if not os.path.exists(file):
-            LOGGER.warning("Calibration file not found: {}".format(
-                file))
+            LOGGER.warning("Calibration file not found: {} . Calibrated "
+                           "values won't be provided.".format(file))
             return
 
         # Load calibration CSV
-        with open(file, 'r') as f:
-            reader = csv.reader(f)
-            for colour, uncal, cal in reader:
+        with open(file, 'r', newline='') as f:
+            reader = csv.reader(f, delimiter=',')
+            for line in reader:
+                colour = None
+                uncal = None
+                cal = None
+
+                try:
+                    uncal = float(line[1].strip())
+                except ValueError:
+                    LOGGER.warning(
+                        "Uncal value not a float '{}'. Ignoring line.".format(
+                            line[1]))
+                    continue
+
+                try:
+                    cal = float(line[2].strip())
+                except ValueError:
+                    LOGGER.warning(
+                        "Cal value not a float '{}'. Ignoring line.".format(
+                            line[2]))
+                    continue
+
+                colour = line[0].strip().capitalize()
                 if colour not in IDS.values():
                     LOGGER.warning(
                         "Unknown tilt colour '{}'. Ignoring line.".format(
-                            colour))
+                            line[0]))
+                    continue
 
                 if colour not in self.calTables:
                     self.calTables[colour] = {
@@ -64,8 +88,8 @@ class Calibrator():
                         "cal": []
                     }
 
-                self.calTables[colour]["uncal"].push(float(uncal))
-                self.calTables[colour]["cal"].push(float(cal))
+                self.calTables[colour]["uncal"].append(uncal)
+                self.calTables[colour]["cal"].append(cal)
 
         # Use polyfit to fit a cubic polynomial curve to calibration values
         # Then create a polynomical from the values produced by polyfit
@@ -75,13 +99,14 @@ class Calibrator():
             z = np.polyfit(x, y, 3)
             self.calPolys[colour] = np.poly1d(z)
 
-        LOGGER.info("Calibration file loaded for colours: {}".format(
+        LOGGER.info("Calibration file {} loaded for colours: {}".format(
+            file,
             ", ".join(self.calPolys.keys())))
 
-    def calValue(self, colour, value):
+    def calValue(self, colour, value, roundPlaces=0):
         # Use polynomials calculated above to calibrate values
         if colour in self.calPolys:
-            return self.calPolys[colour](value)
+            return round(self.calPolys[colour](value), roundPlaces)
         else:
             return None
 
@@ -108,7 +133,7 @@ class ScanDelegate(DefaultDelegate):
         # Digits 44-48 contain the specific gravity * 1000 (i.e. the "points)
         # as an integer.
         uuid = data[8:40]
-        colour = ids.get(uuid, None)
+        colour = IDS.get(uuid, None)
 
         if colour is None:
             # UUID is not for a Tilt
@@ -147,6 +172,9 @@ class ScanDelegate(DefaultDelegate):
             message[colour]['Calibrated temperature[degC]'] = cal_temp_c
         if cal_sg is not None:
             message[colour]['Calibrated specific gravity'] = cal_sg
+
+        LOGGER.debug(message)
+
         try:
             await self.publisher.publish(
                 exchange='brewcast',  # brewblox-history listens to this
@@ -163,16 +191,17 @@ class ScanDelegate(DefaultDelegate):
         if decodedData["colour"] not in self.tiltsFound:
             self.tiltsFound.add(decodedData["colour"])
             LOGGER.info("Found Tilt: {}".format(decodedData["colour"]))
-            
-        cal_sg = self.sgCal.cal(
-            decodedData["colour"], decodedData["sg"])
+
         temp_c = Q_(decodedData["temp_f"], ureg.degF).to('degC').magnitude
 
-        cal_temp_f = self.sgCal.cal(
+        cal_temp_f = self.tempCal.calValue(
             decodedData["colour"], decodedData["temp_f"])
         cal_temp_c = None
         if cal_temp_f is not None:
             cal_temp_c = Q_(cal_temp_f, ureg.degF).to('degC').magnitude
+
+        cal_sg = self.sgCal.calValue(
+            decodedData["colour"], decodedData["sg"], 3)
 
         # Calback is from sync code so we need to wrap publish back up in the
         # async loop
@@ -187,12 +216,6 @@ class ScanDelegate(DefaultDelegate):
                 cal_sg,
                 rssi),
             loop=self.loop)
-
-        LOGGER.debug("colour: {}, temp: {}, sg: {}, signal strenght:{}".format(
-            decodedData["colour"],
-            decodedData["temp_f"],
-            decodedData["sg"],
-            rssi))
 
     def handleDiscovery(self, dev, isNewDev, isNewData):
         data = {}
@@ -226,14 +249,15 @@ class TiltScanner(features.ServiceFeature):
     def _blockingScanner(self):
         while True:
             try:
-                # In theory, this could just be a single start() & multiple process()
-                # Unfortunately, that seems less reliable at returning data.
-                # The Tilt updates every 5s so we just run a 5sec scan repeatedly.
-                # This seems pretty reliable
+                # In theory, this could just be a single start() & multiple
+                # process() Unfortunately, that seems less reliable at
+                # returning data. The Tilt updates every 5s so we just run a
+                # 5sec scan repeatedly. This seems pretty reliable
                 self.scanner.scan(timeout=5)
 
-            # This exception is raised when the task is cancelled (scheduler.cancel_task())
-            # It means we're gracefully shutting down. No need to complain or log errors.
+            # This exception is raised when the task is cancelled
+            # (scheduler.cancel_task()). It means we're gracefully shutting
+            # down. No need to complain or log errors.
             except CancelledError:
                 break
 
