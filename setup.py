@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='brewblox-tilt',
-    version='1.1.1',
+    version='1.2.0',
     long_description=open('README.md').read(),
     url='https://github.com/j616/brewblox-tilt',
     author='James Sandford',
