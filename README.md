@@ -8,6 +8,14 @@ This brewBlox service integrates the Tilt hydrometer into BrewBlox.
 
 ## Usage
 
+### Update bluez
+
+Bluez is Linux's bluetooth software stack. The version provided by Raspbian by default can be unstable. It's recommended you update it from the Debian repositories with the following command:-
+
+```bash
+wget http://http.us.debian.org/debian/pool/main/b/bluez/bluez_5.50-1_armhf.deb && sudo dpkg -i bluez_5.50-1_armhf.deb && rm bluez_5.50-1_armhf.deb
+```
+
 ### Deploy the Tilt service on the BrewBlox stack
 
 You need to add the service to your existing BrewBlox docker compose file.
