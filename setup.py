@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 setup(
     name='brewblox-tilt',
     version='1.2.0',
-    long_description=open('README.md').read(),
+    long_description="Tilt hydrometer service for BrewBlox",
     url='https://github.com/j616/brewblox-tilt',
     author='James Sandford',
     author_email='brewblox-tilt@j616s.co.uk',
