@@ -167,12 +167,15 @@ class ScanDelegate(DefaultDelegate):
                     cal_temp_c,
                     sg,
                     cal_sg,
+                    plato,
+                    cal_plato,
                     rssi):
         self.message[colour] = {
             'Temperature[degF]': temp_f,
             'Temperature[degC]': temp_c,
             'Specific gravity': sg,
-            'Signal strength[dBm]': rssi
+            'Signal strength[dBm]': rssi,
+            'Plato[degP]': plato
             }
 
         if cal_temp_f is not None:
@@ -181,8 +184,15 @@ class ScanDelegate(DefaultDelegate):
             self.message[colour]['Calibrated temperature[degC]'] = cal_temp_c
         if cal_sg is not None:
             self.message[colour]['Calibrated specific gravity'] = cal_sg
+        if cal_plato is not None:
+            self.message[colour]['Calibrated plato[degP]'] = cal_plato
 
         LOGGER.debug(self.message[colour])
+
+    def sgToPlato(self, sg):
+        points = (sg - 1) * 1000
+        plato = 259-(259/points)
+        return plato
 
     def handleData(self, data, rssi):
         decodedData = self.decodeData(data)
@@ -204,6 +214,11 @@ class ScanDelegate(DefaultDelegate):
         cal_sg = self.sgCal.calValue(
             decodedData["colour"], decodedData["sg"], 3)
 
+        plato = self.sgToPlato(decodedData["sg"])
+        cal_plato = None
+        if cal_sg is not None:
+            cal_plato = self.sgToPlato(cal_sg)
+
         self.publishData(
             decodedData["colour"],
             decodedData["temp_f"],
@@ -212,6 +227,8 @@ class ScanDelegate(DefaultDelegate):
             cal_temp_c,
             decodedData["sg"],
             cal_sg,
+            plato,
+            cal_plato,
             rssi)
 
     def handleDiscovery(self, dev, isNewDev, isNewData):
