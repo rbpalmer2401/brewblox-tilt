@@ -190,8 +190,11 @@ class ScanDelegate(DefaultDelegate):
         LOGGER.debug(self.message[colour])
 
     def sgToPlato(self, sg):
-        points = (sg - 1) * 1000
-        plato = 259-(259/points)
+        # From https://www.brewersfriend.com/plato-to-sg-conversion-chart/
+        plato = ((-1 * 616.868)
+                 + (1111.14 * sg)
+                 - (630.272 * sg**2)
+                 + (135.997 * sg**3))
         return plato
 
     def handleData(self, data, rssi):
