@@ -228,7 +228,7 @@ class MessageHandler():
             cal_sg,
             plato,
             cal_plato,
-            rssi)
+            data["rssi"])
 
 
 class TiltScanner(features.ServiceFeature):
