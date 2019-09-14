@@ -3,12 +3,13 @@ Brewblox service for Tilt hydrometer
 """
 import asyncio
 import csv
+import sys
 import os.path
 import numpy as np
 from pint import UnitRegistry
-from bluepy.btle import Scanner, DefaultDelegate
+import bluetooth._bluetooth as bluez
+import blescan
 from aiohttp import web
-from time import sleep
 from concurrent.futures import CancelledError
 from brewblox_service import (brewblox_logger,
                               events,
@@ -111,18 +112,14 @@ class Calibrator():
             return None
 
 
-class ScanDelegate(DefaultDelegate):
-    def __init__(self, app, loop):
-        self.app = app
-        self.loop = loop
+class MessageHandler():
+    def __init__(self):
         self.tiltsFound = set()
         self.noDevicesFound = True
         self.message = {}
 
         self.sgCal = Calibrator(SG_CAL_FILE_PATH)
         self.tempCal = Calibrator(TEMP_CAL_FILE_PATH)
-
-        DefaultDelegate.__init__(self)
 
     def getMessage(self):
         return self.message
@@ -141,16 +138,15 @@ class ScanDelegate(DefaultDelegate):
         # device. Digits 40-44 contain the temperature in f as an integer.
         # Digits 44-48 contain the specific gravity * 1000 (i.e. the "points)
         # as an integer.
-        uuid = data[8:40]
-        colour = IDS.get(uuid, None)
+        colour = IDS.get(data["uuid"], None)
 
         if colour is None:
             # UUID is not for a Tilt
             return None
 
-        temp_f = int(data[40:44], 16)
+        temp_f = data["major"]
 
-        raw_sg = int(data[44:48], 16)
+        raw_sg = data["minor"]
         sg = raw_sg/1000
 
         return {
@@ -197,7 +193,7 @@ class ScanDelegate(DefaultDelegate):
                  + (135.997 * sg**3))
         return plato
 
-    def handleData(self, data, rssi):
+    def handleData(self, data):
         decodedData = self.decodeData(data)
         if decodedData is None:
             return
@@ -234,27 +230,13 @@ class ScanDelegate(DefaultDelegate):
             cal_plato,
             rssi)
 
-    def handleDiscovery(self, dev, isNewDev, isNewData):
-        data = {}
-
-        if self.noDevicesFound:
-            self.noDevicesFound = False
-            LOGGER.info("Loop running & device found (may not be a Tilt)")
-
-        for (adtype, desc, value) in dev.getScanData():
-            data[desc] = value
-
-        # Data we want is in Manufacturer
-        if "Manufacturer" in data:
-            self.handleData(data["Manufacturer"], dev.rssi)
-
 
 class TiltScanner(features.ServiceFeature):
     def __init__(self, app: web.Application):
         super().__init__(app)
         self._task: asyncio.Task = None
-        self.scanner = None
-        self.scanDelegate = None
+        self.scanning = True
+        self.messageHandler = MessageHandler()
 
     async def startup(self, app: web.Application):
         self._task = await scheduler.create_task(app, self._run())
@@ -264,55 +246,42 @@ class TiltScanner(features.ServiceFeature):
         await scheduler.cancel_task(self.app, self._task)
         self._task = None
 
-    def _blockingScanner(self):
-        try:
-            # In theory, this could just be a single start() & multiple
-            # process() Unfortunately, that seems less reliable at
-            # returning data. The Tilt updates every 5s so we just run a
-            # 6sec scan repeatedly. This seems pretty reliable
-            self.scanner.scan(timeout=6)
-
-        # This exception is raised when the task is cancelled
-        # (scheduler.cancel_task()). It means we're gracefully shutting
-        # down. No need to complain or log errors.
-        except CancelledError:
-            return
-
-        # All other errors are still errors - something bad happened
-        # Wait a second, and then continue running
-        except Exception as ex:
-            LOGGER.error(f'Encountered an error: {ex}')
-            sleep(1)
-
     async def _run(self):
-        loop = asyncio.get_running_loop()
         publisher = events.get_publisher(self.app)
         name = self.app['config']['name']  # The unique service name
 
-        self.scanDelegate = ScanDelegate(self.app, loop)
-        self.scanner = Scanner().withDelegate(
-            self.scanDelegate)
-
         LOGGER.info('Started TiltScanner')
 
-        while True:
+        while self.scanning:
             try:
-                await loop.run_in_executor(
-                    None, self._blockingScanner)
+                sock = bluez.hci_open_dev(0)
 
-                message = self.scanDelegate.popMessage()
-                if message != {}:
-                    LOGGER.debug(message)
-                    await publisher.publish(
-                        exchange='brewcast',  # brewblox-history's exchange'
-                        routing=name,
-                        message=message)
+            except Exception as e:
+                LOGGER.error(f"Error accessing bluetooth device: {e}")
+                sys.exit(1)
+
+            blescan.hci_enable_le_scan(sock)
+
+            try:
+                # Keep scanning until the manager is told to stop.
+                while self.scanning:
+                    self.processSocket(sock)
+                    message = self.messageHandler.popMessage()
+                    if message != {}:
+                        LOGGER.debug(message)
+                        await publisher.publish(
+                            exchange='brewcast',  # brewblox-history's exchange
+                            routing=name,
+                            message=message)
 
             except CancelledError:
+                self.scanning = False
                 break
+            except Exception as e:
+                LOGGER.error(
+                    f"Error accessing bluetooth device whilst scanning: {e}")
+                LOGGER.error("Resetting Bluetooth device")
 
-            # All other errors are still errors - something bad happened
-            # Wait a second, and then continue running
-            except Exception as ex:
-                LOGGER.error(f'Encountered an error: {ex}')
-                sleep(1)
+    def processSocket(self, sock):
+        for data in blescan.parse_events(sock, 10):
+            self.messageHandler.handleData(data)

@@ -18,7 +18,7 @@ setup(
     packages=find_packages(exclude=['test', 'docker']),
     install_requires=[
         'brewblox-service',
-        'bluepy',
+        'bluetooth',
         'pint',
         'numpy'
     ],
