@@ -18,8 +18,7 @@ setup(
     packages=find_packages(exclude=['test', 'docker']),
     install_requires=[
         'brewblox-service',
-        'pint',
-        'numpy'
+        'pint'
     ],
     python_requires='>=3.7',
     extras_require={'dev': ['pipenv']}

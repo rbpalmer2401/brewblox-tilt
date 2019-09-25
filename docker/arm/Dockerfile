@@ -27,7 +27,8 @@ RUN \
     libatlas3-base \
     python3-bluez
 
-RUN pip3 install --no-index --find-links=/wheeley brewblox-tilt \
+RUN pip3 install numpy \
+    && pip3 install --no-index --find-links=/wheeley brewblox-tilt \
     && rm -rf /wheeley \
     && pip3 freeze
 
