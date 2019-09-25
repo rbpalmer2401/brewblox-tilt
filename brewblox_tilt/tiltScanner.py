@@ -8,13 +8,13 @@ import os.path
 import numpy as np
 from pint import UnitRegistry
 import bluetooth._bluetooth as bluez
-import blescan
 from aiohttp import web
 from concurrent.futures import CancelledError
 from brewblox_service import (brewblox_logger,
                               events,
                               features,
                               scheduler)
+from . import blescan
 
 LOGGER = brewblox_logger("brewblox_tilt")
 HISTORY_EXCHANGE = 'brewcast'
