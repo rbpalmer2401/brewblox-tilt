@@ -9,7 +9,6 @@ import numpy as np
 from pint import UnitRegistry
 import bluetooth._bluetooth as bluez
 from aiohttp import web
-from concurrent.futures import CancelledError
 from brewblox_service import (brewblox_logger,
                               events,
                               features,
@@ -247,8 +246,8 @@ class TiltScanner(features.ServiceFeature):
         self._task = None
 
     async def _run(self):
-        publisher = events.get_publisher(self.app)
-        name = self.app['config']['name']  # The unique service name
+        self.publisher = events.get_publisher(self.app)
+        self.name = self.app['config']['name']  # The unique service name
 
         LOGGER.info('Started TiltScanner')
 
@@ -262,26 +261,35 @@ class TiltScanner(features.ServiceFeature):
 
             blescan.hci_enable_le_scan(sock)
 
-            try:
-                # Keep scanning until the manager is told to stop.
-                while self.scanning:
-                    self.processSocket(sock)
-                    message = self.messageHandler.popMessage()
-                    if message != {}:
-                        LOGGER.debug(message)
-                        await publisher.publish(
-                            exchange='brewcast',  # brewblox-history's exchange
-                            routing=name,
-                            message=message)
+            # Keep scanning until the manager is told to stop.
+            while self.scanning:
+                self._processSocket(sock)
+                await self._publishMessage()
 
-            except CancelledError:
-                self.scanning = False
-                break
-            except Exception as e:
-                LOGGER.error(
-                    f"Error accessing bluetooth device whilst scanning: {e}")
-                LOGGER.error("Resetting Bluetooth device")
+    def _processSocket(self, sock):
+        try:
+            for data in blescan.parse_events(sock, 10):
+                self.messageHandler.handleData(data)
+        except KeyboardInterrupt:
+            self.scanning = False
+        except Exception as e:
+            LOGGER.error(
+                f"Error accessing bluetooth device whilst scanning: {e}")
+            LOGGER.error("Resetting Bluetooth device")
 
-    def processSocket(self, sock):
-        for data in blescan.parse_events(sock, 10):
-            self.messageHandler.handleData(data)
+    async def _publishMessage(self):
+        try:
+            message = self.messageHandler.popMessage()
+            if message != {}:
+                LOGGER.debug(message)
+                await self.publisher.publish(
+                    exchange='brewcast',  # brewblox-history's exchange
+                    routing=self.name,
+                    message=message)
+
+        except KeyboardInterrupt:
+            self.scanning = False
+        except Exception as e:
+            LOGGER.error(
+                f"Error when publishing data: {e}")
+            LOGGER.error("Resetting Bluetooth device")
