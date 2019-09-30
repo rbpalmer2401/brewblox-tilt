@@ -252,6 +252,7 @@ class TiltScanner(features.ServiceFeature):
         LOGGER.info('Started TiltScanner')
 
         while self.scanning:
+            self.resetBT = False
             try:
                 sock = bluez.hci_open_dev(0)
 
@@ -262,7 +263,7 @@ class TiltScanner(features.ServiceFeature):
             blescan.hci_enable_le_scan(sock)
 
             # Keep scanning until the manager is told to stop.
-            while self.scanning:
+            while self.scanning and not self.resetBT:
                 self._processSocket(sock)
                 await self._publishMessage()
 
@@ -273,6 +274,7 @@ class TiltScanner(features.ServiceFeature):
         except KeyboardInterrupt:
             self.scanning = False
         except Exception as e:
+            self.resetBT = True
             LOGGER.error(
                 f"Error accessing bluetooth device whilst scanning: {e}")
             LOGGER.error("Resetting Bluetooth device")
@@ -290,6 +292,4 @@ class TiltScanner(features.ServiceFeature):
         except KeyboardInterrupt:
             self.scanning = False
         except Exception as e:
-            LOGGER.error(
-                f"Error when publishing data: {e}")
-            LOGGER.error("Resetting Bluetooth device")
+            LOGGER.error("Error when publishing data {}".format(repr(e)))
