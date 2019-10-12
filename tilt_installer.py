@@ -45,7 +45,7 @@ def main():
 
     config['services']['tilt'] = {
         'image': 'j616s/brewblox-tilt:{}'.format(tag),
-        'restart': 'unless_stopped',
+        'restart': 'unless-stopped',
         'privileged': True,
         'depends_on': ['history'],
         'network_mode': 'host',
