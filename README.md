@@ -48,6 +48,17 @@ Finally, you'll have to bring up the new service using
 brewblox-ctl up
 ```
 
+### Alternative: Install script
+
+To automate the above steps, you can also run the `tilt_installer.py` script.
+This will create the ./tilt directory, and edit your `docker-compose.yml` file.
+
+Copy the `tilt_installer.py` file to your brewblox directory, and run it with
+
+```bash
+python3 ./tilt_installer.py
+```
+
 ### Add to your graphs
 
 Once the Tilt service receives data from your Tilt(s), it should be available as graph metrics in BrewBlox.
