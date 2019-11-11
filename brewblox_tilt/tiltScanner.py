@@ -251,20 +251,19 @@ class TiltScanner(features.ServiceFeature):
 
         LOGGER.info('Started TiltScanner')
 
+        try:
+            sock = bluez.hci_open_dev(0)
+
+        except Exception as e:
+            LOGGER.error(f"Error accessing bluetooth device: {e}")
+            sys.exit(1)
+
+        blescan.hci_enable_le_scan(sock)
+
+        # Keep scanning until the manager is told to stop.
         while self.scanning:
-            try:
-                sock = bluez.hci_open_dev(0)
-
-            except Exception as e:
-                LOGGER.error(f"Error accessing bluetooth device: {e}")
-                sys.exit(1)
-
-            blescan.hci_enable_le_scan(sock)
-
-            # Keep scanning until the manager is told to stop.
-            while self.scanning:
-                self._processSocket(sock)
-                await self._publishMessage()
+            self._processSocket(sock)
+            await self._publishMessage()
 
     def _processSocket(self, sock):
         try:
