@@ -10,7 +10,7 @@ To run:
     python3 install_tilt.py
 
 Steps:
-- Creates a calibration dir with the same name as the service.
+- Creates the ./tilt dir for calibration files
 - Append the tilt service to ./docker-compose.yml.
 - Modify the eventbus service to publish port 5672 on the host.
 
@@ -22,7 +22,6 @@ Notes:
 - No calibration files are added or modified.
 """
 
-import re
 from os import makedirs, path
 from platform import machine
 from subprocess import check_call
@@ -31,40 +30,22 @@ import click
 import yaml
 
 
-def _validate_name(ctx, param, value):
-    if not re.match(r'^[a-z0-9-_]+$', value):
-        raise click.BadParameter('Names can only contain letters, numbers, - or _')
-    return value
-
-
 @click.command()
-@click.option('-n', '--name',
-              prompt='How do you want to call this service? The name must be unique',
-              default='tilt',
-              callback=_validate_name,
-              help='Service name')
-@click.option('--port',
-              type=int,
-              default=5001,
-              help='Service port - must be unused, as this service runs on the host')
-@click.option('-f', '--force',
-              is_flag=True,
-              help='Allow overwriting an existing service')
-def install(name, port, force):
+def install():
     """
     Install Tilt Service for BrewBlox
 
     Creates an empty configuration dir with the same name as the service.
     If you want to calibrate your tilt, place the calibration files in this directory.
     """
-    tilt_dir = path.abspath('./' + name)
+    tilt_dir = path.abspath('./tilt')
     compose_file = path.abspath('./docker-compose.yml')
 
     if not path.exists(compose_file):
         raise SystemExit('ERROR: Compose file not found in current directory. '
                          'Please navigate to your brewblox directory first.')
 
-    print('Creating ./{} directory...'.format(name))
+    print('Creating ./tilt directory...')
     if not path.exists(tilt_dir):
         makedirs(tilt_dir)
 
@@ -72,19 +53,19 @@ def install(name, port, force):
     with open(compose_file) as f:
         config = yaml.safe_load(f)
 
-    if name in config['services'] and not force:
-        print('Service "{}" already exists. Use the --force flag if you want to overwrite it'.format(name))
+    if 'tilt' in config['services']:
+        print('Tilt service already exists')
         return
 
     tag = 'rpi-latest' if machine().startswith('arm') else 'latest'
 
-    config['services'][name] = {
+    config['services']['tilt'] = {
         'image': 'j616s/brewblox-tilt:{}'.format(tag),
         'restart': 'unless-stopped',
         'privileged': True,
         'network_mode': 'host',
-        'command': '--name {} --port {} --eventbus-host=172.17.0.1'.format(name, port),
-        'volumes': ['./{}:/share'.format(name)]
+        'command': '--name tilt --port 5001 --eventbus-host=172.17.0.1',
+        'volumes': ['./tilt:/share']
     }
     config['services']['eventbus']['ports'] = ['5672:5672']
 
