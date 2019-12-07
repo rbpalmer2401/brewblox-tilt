@@ -8,7 +8,19 @@ This brewBlox service integrates the Tilt hydrometer into BrewBlox.
 
 ## Usage
 
-### Deploy the Tilt service on the BrewBlox stack
+### Install script
+
+To automatically install a new Tilt, you can use the `install_tilt.py` script.
+This will create the ./tilt directory, and edit your `docker-compose.yml` file.
+
+In your BrewBlox directory, run the following commands:
+
+```bash
+curl -o https://raw.githubusercontent.com/j616/brewblox-tilt/develop/install_tilt.py
+python3 ./install_tilt.py
+```
+
+### Or: Deploy the Tilt service on the BrewBlox stack
 
 You need to add the service to your existing BrewBlox docker compose file.
 
@@ -46,17 +58,6 @@ Finally, you'll have to bring up the new service using
 
 ```bash
 brewblox-ctl up
-```
-
-### Alternative: Install script
-
-To automate the above steps, you can also run the `tilt_installer.py` script.
-This will create the ./tilt directory, and edit your `docker-compose.yml` file.
-
-Copy the `tilt_installer.py` file to your brewblox directory, and run it with
-
-```bash
-python3 ./tilt_installer.py
 ```
 
 ### Add to your graphs

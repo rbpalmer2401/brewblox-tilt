@@ -5,16 +5,20 @@ Convenience installation script for adding a Tilt service to a BrewBlox installa
 
 It must be run in the BrewBlox install directory.
 
+To run:
+
+    python3 install_tilt.py
+
 Steps:
-- Creates the ./tilt directory.
+- Creates the ./tilt dir for calibration files
 - Append the tilt service to ./docker-compose.yml.
 - Modify the eventbus service to publish port 5672 on the host.
 
 Notes:
-
 - Python >= 3.5 is required to run.
-- This scripts depends on the pyyaml package.
-    The package is assumed to be there, as it's also brewblox-ctl dependency.
+- This scripts depends on packages also used by brewblox-ctl
+    - pyyaml
+    - click
 - No calibration files are added or modified.
 """
 
@@ -22,10 +26,18 @@ from os import makedirs, path
 from platform import machine
 from subprocess import check_call
 
+import click
 import yaml
 
 
-def main():
+@click.command()
+def install():
+    """
+    Install Tilt Service for BrewBlox
+
+    Creates an empty configuration dir with the same name as the service.
+    If you want to calibrate your tilt, place the calibration files in this directory.
+    """
     tilt_dir = path.abspath('./tilt')
     compose_file = path.abspath('./docker-compose.yml')
 
@@ -41,15 +53,18 @@ def main():
     with open(compose_file) as f:
         config = yaml.safe_load(f)
 
+    if 'tilt' in config['services']:
+        print('Tilt service already exists')
+        return
+
     tag = 'rpi-latest' if machine().startswith('arm') else 'latest'
 
     config['services']['tilt'] = {
         'image': 'j616s/brewblox-tilt:{}'.format(tag),
         'restart': 'unless-stopped',
         'privileged': True,
-        'depends_on': ['history'],
         'network_mode': 'host',
-        'command': '-p 5001 --eventbus-host=172.17.0.1',
+        'command': '--name tilt --port 5001 --eventbus-host=172.17.0.1',
         'volumes': ['./tilt:/share']
     }
     config['services']['eventbus']['ports'] = ['5672:5672']
@@ -57,9 +72,9 @@ def main():
     with open(compose_file, 'w') as f:
         yaml.safe_dump(config, f)
 
-    print('Restarting services...')
-    check_call('brewblox-ctl restart', shell=True)
+    print('Starting services...')
+    check_call('brewblox-ctl up', shell=True)
 
 
 if __name__ == '__main__':
-    main()
+    install()

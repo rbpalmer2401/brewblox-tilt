@@ -26,6 +26,7 @@ aioresponses = "*"
 brewblox-tools = "*"
 pytest = "*"
 pytest-sugar = "*"
+click = "*"
 
 [requires]
 python_version = "3.7"
