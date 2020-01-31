@@ -124,7 +124,13 @@ To get started:
 # Add repository containing Python 3.8
 sudo add-apt-repository ppa:deadsnakes/ppa
 
-sudo apt install -y python3-pip python3.8 python3.8-dev libglib2.0-dev
+sudo apt install -y \
+    python3-pip \
+    python3.8 \
+    python3.8-dev \
+    libglib2.0-dev \
+    libatlas3-base \
+    python3-bluez
 pip3 install --user pipenv
 
 # in the brewblox-tilt directory
