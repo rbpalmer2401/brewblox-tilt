@@ -119,16 +119,29 @@ As the Tilt does not talk directly to the BrewPi controller, you cannot use your
 
 ## Development
 
+To get started:
+```bash
+# Add repository containing Python 3.8
+sudo add-apt-repository ppa:deadsnakes/ppa
+
+sudo apt install -y python3-pip python3.8 python3.8-dev libglib2.0-dev
+pip3 install --user pipenv
+
+# in the brewblox-tilt directory
+pipenv --python 3.8
+pipenv sync -d
+```
+
 You can build a docker container for x86 using the following:
 
 ```bash
-bbt-localbuild
+brewblox-dev localbuild
 ```
 
 Or for ARM using the following:
 
 ```bash
-bbt-localbuild --arch arm
+brewblox-dev localbuild --arch arm
 ```
 
 You can then run this container using the following:

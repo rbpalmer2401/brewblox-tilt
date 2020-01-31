@@ -8,7 +8,7 @@ RUN pip3 install wheel \
     && pip3 wheel --wheel-dir=/wheeley --find-links=/wheeley-base -r /app/requirements.txt \
     && pip3 wheel --wheel-dir=/wheeley --find-links=/wheeley --no-index /app/dist/*
 
-FROM python:3.7-slim
+FROM python:3.8-slim
 EXPOSE 5001
 WORKDIR /app
 
@@ -20,9 +20,9 @@ COPY --from=base /wheeley /wheeley
 COPY ./config /app/config
 
 RUN \
-  apt-get clean && \
-  apt-get update && \
-  apt-get install -y \
+    apt-get clean && \
+    apt-get update && \
+    apt-get install -y \
     libglib2.0-dev \
     libatlas3-base \
     python3-bluez

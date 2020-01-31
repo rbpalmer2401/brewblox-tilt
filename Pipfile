@@ -9,7 +9,7 @@ url = "https://www.piwheels.org/simple"
 verify_ssl = true
 
 [packages]
-brewblox-service = ">=0.15.0"
+brewblox-service = ">=0.21.0"
 bluepy = "*"
 pint = "*"
 numpy = "*"
@@ -19,7 +19,6 @@ pytest-flake8 = "*"
 pytest-cov = "*"
 pytest-mock = "*"
 pytest-aiohttp = "*"
-asynctest = "*"
 aioresponses = "*"
 "flake8" = "*"
 "autopep8" = "*"
@@ -29,4 +28,4 @@ pytest-sugar = "*"
 click = "*"
 
 [requires]
-python_version = "3.7"
+python_version = "3.8"
