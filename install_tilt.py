@@ -67,6 +67,10 @@ def install():
         'command': '--name tilt --port 5001 --eventbus-host=172.17.0.1',
         'volumes': ['./tilt:/share']
     }
+
+    if 'eventbus' not in config['services']:
+        config['services']['eventbus'] = {}
+
     config['services']['eventbus']['ports'] = ['5672:5672']
 
     with open(compose_file, 'w') as f:
