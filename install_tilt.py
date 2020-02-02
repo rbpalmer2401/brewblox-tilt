@@ -68,7 +68,7 @@ def install():
         'volumes': ['./tilt:/share']
     }
 
-    if not 'eventbus' in config['services']:
+    if 'eventbus' not in config['services']:
         config['services']['eventbus'] = {}
 
     config['services']['eventbus']['ports'] = ['5672:5672']
