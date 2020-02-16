@@ -53,10 +53,6 @@ def install():
     with open(compose_file) as f:
         config = yaml.safe_load(f)
 
-    if 'tilt' in config['services']:
-        print('Tilt service already exists')
-        return
-
     tag = 'rpi-latest' if machine().startswith('arm') else 'latest'
 
     config['services']['tilt'] = {
@@ -67,7 +63,9 @@ def install():
         'command': '--name tilt --port 5001 --eventbus-host=172.17.0.1',
         'volumes': ['./tilt:/share']
     }
-    config['services']['eventbus']['ports'] = ['5672:5672']
+    config['services']['eventbus'] = {
+        'ports': ['5672:5672']
+    }
 
     with open(compose_file, 'w') as f:
         yaml.safe_dump(config, f)
