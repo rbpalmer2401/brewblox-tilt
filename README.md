@@ -16,7 +16,7 @@ This will create the ./tilt directory, and edit your `docker-compose.yml` file.
 In your BrewBlox directory, run the following commands:
 
 ```bash
-curl -o https://raw.githubusercontent.com/j616/brewblox-tilt/develop/install_tilt.py
+curl -O https://raw.githubusercontent.com/j616/brewblox-tilt/develop/install_tilt.py
 python3 ./install_tilt.py
 ```
 
