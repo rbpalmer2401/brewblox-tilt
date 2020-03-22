@@ -24,7 +24,6 @@ aioresponses = "*"
 "autopep8" = "*"
 brewblox-tools = "*"
 pytest = "*"
-pytest-sugar = "*"
 click = "*"
 
 [requires]
