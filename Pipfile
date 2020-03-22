@@ -12,7 +12,7 @@ verify_ssl = true
 brewblox-service = ">=0.21.0"
 bluepy = "*"
 pint = "*"
-numpy = "*"
+numpy = {version="*", index="piwheels"}
 
 [dev-packages]
 pytest-flake8 = "*"
