@@ -7,12 +7,14 @@ services:
   - docker
 
 install:
+  - set -o allexport
   - source .env
-  - pip install pipenv
-  - pipenv install --dev
+  - set +o allexport
+  - pip install poetry
+  - poetry install
 
 script:
-  - pytest
+  - poetry run pytest
 
 # Note: Deployment refers to multiple environment variables, both public and private.
 # Public values should be set in the .env file in the repository.
@@ -34,35 +36,31 @@ script:
 # * PYPI_USER
 # * PYPI_PASSWORD
 
-before_deploy: python setup.py sdist;
-  bbt-distcopy dist/ docker/dist/;
-  bbt-distcopy config/ docker/config/;
+before_deploy:
+  curl -L -o ~/.docker/cli-plugins/docker-buildx --create-dirs https://github.com/docker/buildx/releases/download/v0.3.1/buildx-v0.3.1.linux-amd64;
+  chmod a+x ~/.docker/cli-plugins/docker-buildx;
+  docker run --rm --privileged multiarch/qemu-user-static --reset -p yes;
+  docker buildx create --use;
+  docker buildx inspect --bootstrap;
   docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD};
-  docker run --rm --privileged multiarch/qemu-user-static:register --reset;
+  bash ./before_build.sh;
 
 deploy:
   # Deploy "latest" and version tag to Docker Hub on tagged commits
   - provider: script
-    script: bbt-localbuild
-      --arch amd arm
-      --tags latest $(git describe --tags)
+    script:
+      TAG=$(echo $TRAVIS_BRANCH | tr '/' '-' | tr '[:upper:]' '[:lower:]')
+      docker buildx build
+      --tag $(DOCKER_REPO):$(TAG)
+      --tag $(DOCKER_REPO):rpi-$(TAG)
+      --build-arg service_info="$(git describe) @ $(date)"
       --push
+      --platform linux/amd64,linux/arm/v7
+      docker
     skip_cleanup: true
     on:
-      tags: true
-
-  # Deploy branch to Docker Hub on any push to the GitHub repository (but not forks)
-  - provider: script
-    script: bbt-localbuild
-      --arch amd arm
-      --branch-tag
-      --push
-    skip_cleanup: true
-    on:
-      tags: false
       repo: ${GITHUB_REPO}
       all_branches: true
-      condition: ${TRAVIS_BRANCH} != master
 
   # Deploy to PyPi any time the package version number is updated
   - provider: pypi
