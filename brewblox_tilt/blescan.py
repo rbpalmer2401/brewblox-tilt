@@ -26,7 +26,7 @@ def printpacket(pkt):
 
 def get_packed_bdaddr(bdaddr_string):
     packable_addr = []
-    addr = bdaddr_string.split(':')
+    addr = bdaddr_string.split(":")
     addr.reverse()
     for b in addr:
         packable_addr.append(int(b, 16))
@@ -34,7 +34,7 @@ def get_packed_bdaddr(bdaddr_string):
 
 
 def packed_bdaddr_to_string(bdaddr_packed):
-    return ':'.join('%02x' % i for i in struct.unpack(
+    return ":".join("%02x" % i for i in struct.unpack(
         "<BBBBBB", bdaddr_packed[::-1]))
 
 
