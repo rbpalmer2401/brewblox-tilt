@@ -239,11 +239,11 @@ class TiltScanner(features.ServiceFeature):
         self.messageHandler = MessageHandler()
 
     async def startup(self, app: web.Application):
-        self._task = await scheduler.create_task(app, self._run())
+        self._task = await scheduler.create(app, self._run())
 
     # Cleanup before the service shuts down
     async def shutdown(self, app: web.Application):
-        await scheduler.cancel_task(self.app, self._task)
+        await scheduler.cancel(self.app, self._task)
         self._task = None
 
     async def _run(self):
@@ -284,7 +284,7 @@ class TiltScanner(features.ServiceFeature):
             if message != {}:
                 LOGGER.debug(message)
                 await self.publisher.publish(
-                    exchange="brewcast",  # brewblox-history's exchange
+                    exchange=HISTORY_EXCHANGE,
                     routing=self.name,
                     message=message)
 
