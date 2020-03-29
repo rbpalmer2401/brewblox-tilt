@@ -46,32 +46,31 @@ before_deploy:
   - docker buildx inspect --bootstrap
 
   # Docker login
-  - echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USER} --password-stdin
-  - cd docker
-  - bash ./before_build.sh
-  - cd ${TRAVIS_BUILD_DIR}
+  - if [ "${TRAVIS_PULL_REQUEST}" = "false" ]; then
+      echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USER} --password-stdin;
+    fi
+
+  - bash docker/before_build.sh
+
+  - export TAG=$(echo ${TRAVIS_BRANCH} | tr '/' '-' | tr '[:upper:]' '[:lower:]')
 
 deploy:
   # Deploy "latest" and version tag to Docker Hub on tagged commits
   - provider: script
-    script:
-    - echo "Docker deploy"
-    - TAG=$(echo $TRAVIS_BRANCH | tr '/' '-' | tr '[:upper:]' '[:lower:]')
-    - |
+    script: >-
       docker buildx build
-      --tag ${DOCKER_REPO}:${TAG}
-      --tag ${DOCKER_REPO}:rpi-${TAG}
+      --tag ${DOCKER_REPO}:$TAG
+      --tag ${DOCKER_REPO}:rpi-$TAG
       --build-arg service_info="$(git describe) @ $(date)"
       --push
       --platform linux/amd64,linux/arm/v7
       docker;
-    - echo "Docker deployed"
     skip_cleanup: true
     on:
       repo: ${GITHUB_REPO}
       all_branches: true
 
-  # Deploy to PyPi any time the package version number is updated
+  # Deploy to PyPi any time the package version number is updated on master
   - provider: pypi
     username: ${PYPI_USER}
     password: ${PYPI_PASSWORD}
@@ -79,4 +78,3 @@ deploy:
     skip_cleanup: true
     on:
       repo: ${GITHUB_REPO}
-      all_branches: true
