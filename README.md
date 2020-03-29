@@ -26,7 +26,7 @@ You need to add the service and set the eventbus port in your `docker-compose.ym
 
 ```yaml
 tilt:
-    image: j616s/brewblox-tilt:master
+    image: j616s/brewblox-tilt:latest
     restart: unless-stopped
     privileged: true
     depends_on:

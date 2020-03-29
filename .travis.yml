@@ -55,7 +55,21 @@ before_deploy:
   - export TAG=$(echo ${TRAVIS_BRANCH} | tr '/' '-' | tr '[:upper:]' '[:lower:]')
 
 deploy:
-  # Deploy "latest" and version tag to Docker Hub on tagged commits
+  # Deploy "latest" on tag
+  - provider: script
+    script: >-
+      docker buildx build
+      --tag ${DOCKER_REPO}:latest
+      --tag ${DOCKER_REPO}:rpi-latest
+      --build-arg service_info="$(git describe) @ $(date)"
+      --push
+      --platform linux/amd64,linux/arm/v7
+      docker;
+    skip_cleanup: true
+    on:
+      tags: true
+
+  # Deploy branch on any push to repo
   - provider: script
     script: >-
       docker buildx build
@@ -67,8 +81,10 @@ deploy:
       docker;
     skip_cleanup: true
     on:
+      tags: false
       repo: ${GITHUB_REPO}
       all_branches: true
+      condition: ${TRAVIS_BRANCH} != master
 
   # Deploy to PyPi any time the package version number is updated on master
   - provider: pypi
@@ -78,3 +94,4 @@ deploy:
     skip_cleanup: true
     on:
       repo: ${GITHUB_REPO}
+      tags: true
