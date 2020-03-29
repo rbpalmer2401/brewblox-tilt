@@ -1,18 +1,16 @@
-sudo: required
 language: python
-dist: buster
+dist: bionic
 python: "3.7"
 
-services:
-  - docker
-
 install:
+  - set -o allexport
   - source .env
-  - pip install pipenv
-  - pipenv install --dev
+  - set +o allexport
+  - pip install poetry
+  - poetry install
 
 script:
-  - pytest
+  - poetry run pytest
 
 # Note: Deployment refers to multiple environment variables, both public and private.
 # Public values should be set in the .env file in the repository.
@@ -34,29 +32,53 @@ script:
 # * PYPI_USER
 # * PYPI_PASSWORD
 
-before_deploy: python setup.py sdist;
-  bbt-distcopy dist/ docker/dist/;
-  bbt-distcopy config/ docker/config/;
-  docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD};
-  docker run --rm --privileged multiarch/qemu-user-static:register --reset;
+before_deploy:
+  # Install docker & enable buildx
+  - curl -fsSL https://get.docker.com | sh
+  - echo '{"experimental":"enabled"}' | sudo tee /etc/docker/daemon.json
+  - mkdir -p $HOME/.docker
+  - echo '{"experimental":"enabled"}' | sudo tee $HOME/.docker/config.json
+  - sudo service docker start
+
+  # Prep buildx
+  - docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+  - docker buildx create --use
+  - docker buildx inspect --bootstrap
+
+  # Docker login
+  - if [ "${TRAVIS_PULL_REQUEST}" = "false" ]; then
+      echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USER} --password-stdin;
+    fi
+
+  - bash docker/before_build.sh
+
+  - export TAG=$(echo ${TRAVIS_BRANCH} | tr '/' '-' | tr '[:upper:]' '[:lower:]')
 
 deploy:
-  # Deploy "latest" and version tag to Docker Hub on tagged commits
+  # Deploy "latest" on tag
   - provider: script
-    script: bbt-localbuild
-      --arch amd arm
-      --tags latest $(git describe --tags)
+    script: >-
+      docker buildx build
+      --tag ${DOCKER_REPO}:latest
+      --tag ${DOCKER_REPO}:rpi-latest
+      --build-arg service_info="$(git describe) @ $(date)"
       --push
+      --platform linux/amd64,linux/arm/v7
+      docker;
     skip_cleanup: true
     on:
       tags: true
 
-  # Deploy branch to Docker Hub on any push to the GitHub repository (but not forks)
+  # Deploy branch on any push to repo
   - provider: script
-    script: bbt-localbuild
-      --arch amd arm
-      --branch-tag
+    script: >-
+      docker buildx build
+      --tag ${DOCKER_REPO}:$TAG
+      --tag ${DOCKER_REPO}:rpi-$TAG
+      --build-arg service_info="$(git describe) @ $(date)"
       --push
+      --platform linux/amd64,linux/arm/v7
+      docker;
     skip_cleanup: true
     on:
       tags: false
@@ -64,12 +86,12 @@ deploy:
       all_branches: true
       condition: ${TRAVIS_BRANCH} != master
 
-  # Deploy to PyPi any time the package version number is updated
+  # Deploy to PyPi any time the package version number is updated on master
   - provider: pypi
-    user: ${PYPI_USER}
+    username: ${PYPI_USER}
     password: ${PYPI_PASSWORD}
     skip_existing: true
     skip_cleanup: true
     on:
       repo: ${GITHUB_REPO}
-      all_branches: true
+      tags: true

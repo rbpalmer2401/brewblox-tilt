@@ -16,7 +16,7 @@ from brewblox_service import (brewblox_logger,
 from . import blescan
 
 LOGGER = brewblox_logger("brewblox_tilt")
-HISTORY_EXCHANGE = 'brewcast'
+HISTORY_EXCHANGE = "brewcast"
 ureg = UnitRegistry()
 Q_ = ureg.Quantity
 
@@ -31,8 +31,8 @@ IDS = {
     "a495bb80c5b14b44b5121370f02d74de": "Pink"
     }
 
-SG_CAL_FILE_PATH = '/share/SGCal.csv'
-TEMP_CAL_FILE_PATH = '/share/tempCal.csv'
+SG_CAL_FILE_PATH = "/share/SGCal.csv"
+TEMP_CAL_FILE_PATH = "/share/tempCal.csv"
 
 
 def setup(app):
@@ -48,12 +48,12 @@ class Calibrator():
     def loadFile(self, file):
         if not os.path.exists(file):
             LOGGER.warning("Calibration file not found: {} . Calibrated "
-                           "values won't be provided.".format(file))
+                           "values won\'t be provided.".format(file))
             return
 
         # Load calibration CSV
-        with open(file, 'r', newline='') as f:
-            reader = csv.reader(f, delimiter=',')
+        with open(file, "r", newline="") as f:
+            reader = csv.reader(f, delimiter=",")
             for line in reader:
                 colour = None
                 uncal = None
@@ -63,22 +63,23 @@ class Calibrator():
                     uncal = float(line[1].strip())
                 except ValueError:
                     LOGGER.warning(
-                        "Uncal value not a float '{}'. Ignoring line.".format(
-                            line[1]))
+                        (
+                            "Uncal value not a float \'{}\'. Ignoring line."
+                        ).format(line[1]))
                     continue
 
                 try:
                     cal = float(line[2].strip())
                 except ValueError:
                     LOGGER.warning(
-                        "Cal value not a float '{}'. Ignoring line.".format(
+                        "Cal value not a float \'{}\'. Ignoring line.".format(
                             line[2]))
                     continue
 
                 colour = line[0].strip().capitalize()
                 if colour not in IDS.values():
                     LOGGER.warning(
-                        "Unknown tilt colour '{}'. Ignoring line.".format(
+                        "Unknown tilt colour \'{}\'. Ignoring line.".format(
                             line[0]))
                     continue
 
@@ -166,21 +167,21 @@ class MessageHandler():
                     cal_plato,
                     rssi):
         self.message[colour] = {
-            'Temperature[degF]': temp_f,
-            'Temperature[degC]': temp_c,
-            'Specific gravity': sg,
-            'Signal strength[dBm]': rssi,
-            'Plato[degP]': plato
+            "Temperature[degF]": temp_f,
+            "Temperature[degC]": temp_c,
+            "Specific gravity": sg,
+            "Signal strength[dBm]": rssi,
+            "Plato[degP]": plato
             }
 
         if cal_temp_f is not None:
-            self.message[colour]['Calibrated temperature[degF]'] = cal_temp_f
+            self.message[colour]["Calibrated temperature[degF]"] = cal_temp_f
         if cal_temp_c is not None:
-            self.message[colour]['Calibrated temperature[degC]'] = cal_temp_c
+            self.message[colour]["Calibrated temperature[degC]"] = cal_temp_c
         if cal_sg is not None:
-            self.message[colour]['Calibrated specific gravity'] = cal_sg
+            self.message[colour]["Calibrated specific gravity"] = cal_sg
         if cal_plato is not None:
-            self.message[colour]['Calibrated plato[degP]'] = cal_plato
+            self.message[colour]["Calibrated plato[degP]"] = cal_plato
 
         LOGGER.debug(self.message[colour])
 
@@ -201,13 +202,13 @@ class MessageHandler():
             self.tiltsFound.add(decodedData["colour"])
             LOGGER.info("Found Tilt: {}".format(decodedData["colour"]))
 
-        temp_c = Q_(decodedData["temp_f"], ureg.degF).to('degC').magnitude
+        temp_c = Q_(decodedData["temp_f"], ureg.degF).to("degC").magnitude
 
         cal_temp_f = self.tempCal.calValue(
             decodedData["colour"], decodedData["temp_f"])
         cal_temp_c = None
         if cal_temp_f is not None:
-            cal_temp_c = Q_(cal_temp_f, ureg.degF).to('degC').magnitude
+            cal_temp_c = Q_(cal_temp_f, ureg.degF).to("degC").magnitude
 
         cal_sg = self.sgCal.calValue(
             decodedData["colour"], decodedData["sg"], 3)
@@ -238,18 +239,18 @@ class TiltScanner(features.ServiceFeature):
         self.messageHandler = MessageHandler()
 
     async def startup(self, app: web.Application):
-        self._task = await scheduler.create_task(app, self._run())
+        self._task = await scheduler.create(app, self._run())
 
     # Cleanup before the service shuts down
     async def shutdown(self, app: web.Application):
-        await scheduler.cancel_task(self.app, self._task)
+        await scheduler.cancel(self.app, self._task)
         self._task = None
 
     async def _run(self):
         self.publisher = events.get_publisher(self.app)
-        self.name = self.app['config']['name']  # The unique service name
+        self.name = self.app["config"]["name"]  # The unique service name
 
-        LOGGER.info('Started TiltScanner')
+        LOGGER.info("Started TiltScanner")
 
         try:
             sock = bluez.hci_open_dev(0)
@@ -283,7 +284,7 @@ class TiltScanner(features.ServiceFeature):
             if message != {}:
                 LOGGER.debug(message)
                 await self.publisher.publish(
-                    exchange='brewcast',  # brewblox-history's exchange
+                    exchange=HISTORY_EXCHANGE,
                     routing=self.name,
                     message=message)
 

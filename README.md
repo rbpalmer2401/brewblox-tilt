@@ -22,11 +22,11 @@ python3 ./install_tilt.py
 
 ### Or: Deploy the Tilt service on the BrewBlox stack
 
-You need to add the service to your existing BrewBlox docker compose file.
+You need to add the service and set the eventbus port in your `docker-compose.yml` file.
 
 ```yaml
 tilt:
-    image: j616s/brewblox-tilt:rpi-latest
+    image: j616s/brewblox-tilt:latest
     restart: unless-stopped
     privileged: true
     depends_on:
@@ -35,21 +35,8 @@ tilt:
     command: -p 5001 --eventbus-host=172.17.0.1
     volumes:
         - ./tilt:/share
-```
 
-The brewblox-tilt docker images are available on docker hub.
-
-Note that the image tag to use is:
-
--   rpi-latest for the arm architecture (when deploying on a RaspberryPi)
--   latest for the amd architecture
-
-You'll also need to modify the eventbus entry in your existing BrewBlox docker compose file to look like this.
-
-```yaml
 eventbus:
-    image: arm32v6/rabbitmq:alpine
-    restart: unless-stopped
     ports:
         - "5672:5672"
 ```
@@ -119,16 +106,75 @@ As the Tilt does not talk directly to the BrewPi controller, you cannot use your
 
 ## Development
 
+To get started:
+
+Install deps & pyenv
+```bash
+sudo apt update -y
+sudo apt install -y \
+    libglib2.0-dev \
+    libatlas3-base \
+    python3-bluez \
+    make \
+    build-essential \
+    libssl-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    wget \
+    curl \
+    llvm \
+    libncurses5-dev \
+    libncursesw5-dev \
+    xz-utils \
+    tk-dev \
+    libffi-dev \
+    liblzma-dev \
+    python-openssl \
+    git
+```
+
+Install pyenv
+```bash
+curl https://pyenv.run | bash
+```
+
+Install Python 3.7
+```bash
+pyenv install 3.7.7
+```
+After installing, it may suggest to add initialization code to `~/.bashrc`. Do that.
+
+Install Poetry
+```bash
+pip3 install --user poetry
+```
+
+Configure and install the environment used for this project.
+__Run in the root of the cloned brewblox-tilt directory__
+```bash
+pyenv local 3.7.7
+poetry install
+```
+
+During development, you need to have your environment activated. When it is activated, your terminal prompt is prefixed with (.venv).
+
+Visual Studio code with suggested settings does this automatically whenever you open a .py file. If you prefer using a different editor, you can do it manually by running:
+```bash
+poetry shell
+```
+
 You can build a docker container for x86 using the following:
 
 ```bash
-bbt-localbuild
+brewblox-dev localbuild
 ```
 
 Or for ARM using the following:
 
 ```bash
-bbt-localbuild --arch arm
+brewblox-dev localbuild --arch arm
 ```
 
 You can then run this container using the following:
