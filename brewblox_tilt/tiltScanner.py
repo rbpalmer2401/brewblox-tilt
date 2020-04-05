@@ -250,7 +250,7 @@ class TiltScanner(features.ServiceFeature):
         self.publisher = events.get_publisher(self.app)
         self.name = self.app["config"]["name"]  # The unique service name
 
-        LOGGER.info("Started TiltScanner")
+        LOGGER.info("Started RP-TiltScanner")
 
         try:
             sock = bluez.hci_open_dev(0)
