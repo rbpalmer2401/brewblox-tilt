@@ -218,7 +218,7 @@ class MessageHandler():
         
         # Return if Tilt data outside of range    
         if decodedData["sg"] < 0.986 or decodedData["sg"] > 1.150:
-            LOGGER.info("Tilt Data out of Range: {}".format(decodedData["sg"], 3))
+            LOGGER.info("Tilt data out of Range: {}".format(decodedData["sg"], 3))
             return
         
         cal_sg = self.sgCal.calValue(
