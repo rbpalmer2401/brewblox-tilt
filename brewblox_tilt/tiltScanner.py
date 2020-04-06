@@ -224,7 +224,7 @@ class MessageHandler():
             decodedData["colour"], decodedData["sg"], 3)
         
         # If no Calculated data read As:Is
-        if cal_sg = None:
+        if cal_sg is None:
             cal_sg = decodedData["sg"]
         
         plato = self.sgToPlato(decodedData["sg"])
