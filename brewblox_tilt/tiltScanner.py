@@ -206,18 +206,44 @@ class MessageHandler():
 
         cal_temp_f = self.tempCal.calValue(
             decodedData["colour"], decodedData["temp_f"])
+        
+        # If no Calculated Temp read As:Is
+        if cal_temp_f is None:
+            cal_temp_f = decodedData["temp_f"]
+            
         cal_temp_c = None
+        
         if cal_temp_f is not None:
             cal_temp_c = Q_(cal_temp_f, ureg.degF).to("degC").magnitude
-
+        
+        # Return if Tilt data outside of range    
+        if decodedData["sg"] < 0.986 or decodedData["sg"] > 1.150:
+            return
+        
         cal_sg = self.sgCal.calValue(
             decodedData["colour"], decodedData["sg"], 3)
-
+        
+        # If no Calculated data read As:Is
+        if cal_sg is None:
+            cal_sg = decodedData["sg"]
+        
         plato = self.sgToPlato(decodedData["sg"])
         cal_plato = None
         if cal_sg is not None:
             cal_plato = self.sgToPlato(cal_sg)
-
+            
+        print (
+            decodedData["colour"],
+            decodedData["temp_f"],
+            cal_temp_f,
+            temp_c,
+            cal_temp_c,
+            decodedData["sg"],
+            cal_sg,
+            plato,
+            cal_plato,
+            data["rssi"])
+        
         self.publishData(
             decodedData["colour"],
             decodedData["temp_f"],
