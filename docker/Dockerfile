@@ -1,6 +1,6 @@
 FROM python:3.7 as base
 
-#COPY ./dist /app/dist
+COPY ./dist /app/dist
 COPY ./requirements.txt /app/requirements.txt
 
 RUN pip3 install wheel \
