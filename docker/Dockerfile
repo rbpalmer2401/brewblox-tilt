@@ -1,7 +1,7 @@
 FROM python:3.7 as base
 
-COPY ./dist /app/dist
-COPY ./requirements.txt /app/requirements.txt
+#COPY ./dist /app/dist
+#COPY ./requirements.txt /app/requirements.txt
 
 RUN pip3 install wheel \
     && pip3 wheel --wheel-dir=/wheeley --extra-index-url=https://www.piwheels.org/simple -r /app/requirements.txt \
