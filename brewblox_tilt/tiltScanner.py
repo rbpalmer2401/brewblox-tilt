@@ -231,19 +231,7 @@ class MessageHandler():
         cal_plato = None
         if cal_sg is not None:
             cal_plato = self.sgToPlato(cal_sg)
-            
-        print (
-            decodedData["colour"],
-            decodedData["temp_f"],
-            cal_temp_f,
-            temp_c,
-            cal_temp_c,
-            decodedData["sg"],
-            cal_sg,
-            plato,
-            cal_plato,
-            data["rssi"])
-        
+           
         self.publishData(
             decodedData["colour"],
             decodedData["temp_f"],
