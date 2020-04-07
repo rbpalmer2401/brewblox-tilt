@@ -222,7 +222,7 @@ class MessageHandler():
             LOGGER.info("Tilt data out of Range: {}".format(decodedData["sg"], 3))
             if last_sg == 0.00:
                 return
-            else
+            else:
                 LOGGER.info("Repalced by last_sg: {}")
                 decodedData["sg"] = last_sg
         
