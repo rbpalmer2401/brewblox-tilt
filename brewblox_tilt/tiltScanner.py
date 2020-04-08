@@ -225,6 +225,10 @@ class MessageHandler():
             else:
                 LOGGER.info("Repalced by last_sg: {}")
                 decodedData["sg"] = last_sg
+                
+        # smooth out data differences
+        sg_diff = last_sg - decodedData["sg"]
+        decodedData["sg"] = (decodedData["sg"] - (sg_diff/2))
         
         cal_sg = self.sgCal.calValue(
             decodedData["colour"], decodedData["sg"], 3)
