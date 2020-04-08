@@ -224,11 +224,7 @@ class MessageHandler():
         #LOGGER.info("Tilt data: {}".format(decodedData["sg"], 3)) 
         if decodedData["sg"] < 0.986 or decodedData["sg"] > 1.110:
             LOGGER.info("Tilt data out of Range: {}".format(decodedData["sg"], 3))
-            if last_sg == 0.00:
                 return
-            else:
-                LOGGER.info("Repalced by last_sg: {}")
-                decodedData["sg"] = last_sg
                 
         # smooth out data differences
         sg_diff = decodedData["sg"] - last_sg
