@@ -19,7 +19,7 @@ LOGGER = brewblox_logger("brewblox_tilt")
 HISTORY_EXCHANGE = "brewcast"
 ureg = UnitRegistry()
 Q_ = ureg.Quantity
-
+last_sg = 0.000
 IDS = {
     "a495bb10c5b14b44b5121370f02d74de": "Red",
     "a495bb20c5b14b44b5121370f02d74de": "Green",
@@ -194,6 +194,7 @@ class MessageHandler():
         return plato
 
     def handleData(self, data):
+        global last_sg
         decodedData = self.decodeData(data)
         if decodedData is None:
             return
@@ -219,7 +220,16 @@ class MessageHandler():
         # Return if Tilt data outside of range    
         if decodedData["sg"] < 0.986 or decodedData["sg"] > 1.150:
             LOGGER.info("Tilt data out of Range: {}".format(decodedData["sg"], 3))
-            return
+            if last_sg == 0.00:
+                return
+            else:
+                LOGGER.info("Repalced by last_sg: {}")
+                decodedData["sg"] = last_sg
+                
+        # smooth out data differences
+        sg_diff = last_sg - decodedData["sg"]
+        if abs(sg_diff) > 0.01:
+            decodedData["sg"] = (decodedData["sg"] - (sg_diff/2))
         
         cal_sg = self.sgCal.calValue(
             decodedData["colour"], decodedData["sg"], 3)
@@ -232,7 +242,9 @@ class MessageHandler():
         cal_plato = None
         if cal_sg is not None:
             cal_plato = self.sgToPlato(cal_sg)
-           
+            
+        last_sg = decodedData["sg"]   
+        
         self.publishData(
             decodedData["colour"],
             decodedData["temp_f"],
