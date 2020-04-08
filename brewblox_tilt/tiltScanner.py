@@ -231,6 +231,7 @@ class MessageHandler():
         sg_diff = last_sg - decodedData["sg"]
         
         if abs(sg_diff) > 0.015:
+            LOGGER.info("Tilt data: {}".format(sg_diff) 
             return
         
         if abs(sg_diff) > 0.01:
