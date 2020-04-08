@@ -228,10 +228,10 @@ class MessageHandler():
                 decodedData["sg"] = last_sg
                 
         # smooth out data differences
-        sg_diff = last_sg - decodedData["sg"]
+        sg_diff = decodedData["sg"] - last_sg
         
         if abs(sg_diff) > 0.015:
-            LOGGER.info("Tilt data: {}".format(sg_diff) 
+            LOGGER.info("Tilt data: {}".format(sg_diff)) 
             return
         
         if abs(sg_diff) > 0.01:
