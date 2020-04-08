@@ -217,7 +217,8 @@ class MessageHandler():
         if cal_temp_f is not None:
             cal_temp_c = Q_(cal_temp_f, ureg.degF).to("degC").magnitude
         
-        # Return if Tilt data outside of range    
+        # Return if Tilt data outside of range   
+        LOGGER.info("Tilt data: {}".format(decodedData["sg"], 3)) 
         if decodedData["sg"] < 0.986 or decodedData["sg"] > 1.150:
             LOGGER.info("Tilt data out of Range: {}".format(decodedData["sg"], 3))
             if last_sg == 0.00:
