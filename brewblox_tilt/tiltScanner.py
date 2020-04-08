@@ -214,6 +214,9 @@ class MessageHandler():
             
         cal_temp_c = None
         
+        if last_sg = 0:
+            last_sg = decodedData["sg"]
+        
         if cal_temp_f is not None:
             cal_temp_c = Q_(cal_temp_f, ureg.degF).to("degC").magnitude
         
@@ -229,7 +232,8 @@ class MessageHandler():
                 
         # smooth out data differences
         sg_diff = decodedData["sg"] - last_sg
-        
+        LOGGER.info("Tilt decoded: {}".format(decodedData["sg"], 3))
+        LOGGER.info("Tilt last_sg: {}".format(last_sg))
         if abs(sg_diff) > 0.015:
             LOGGER.info("Tilt data: {}".format(sg_diff)) 
             return
