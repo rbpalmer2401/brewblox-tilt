@@ -230,11 +230,11 @@ class MessageHandler():
         sg_diff = decodedData["sg"] - last_sg
         LOGGER.info("Tilt decoded: {}".format(decodedData["sg"], 3))
         LOGGER.info("Tilt last_sg: {}".format(last_sg))
-        if abs(sg_diff) > 0.015:
+        if abs(sg_diff) > 0.005:
             LOGGER.info("Tilt data: {}".format(sg_diff)) 
             return
         
-        if abs(sg_diff) > 0.01:
+        if abs(sg_diff) > 0.001:
             decodedData["sg"] = (decodedData["sg"] - (sg_diff/2))
         
         cal_sg = self.sgCal.calValue(
