@@ -214,7 +214,7 @@ class MessageHandler():
             
         cal_temp_c = None
         
-        if last_sg = 0:
+        if last_sg == 0:
             last_sg = decodedData["sg"]
         
         if cal_temp_f is not None:
