@@ -227,7 +227,7 @@ class MessageHandler():
             return
                 
         # smooth out data differences
-        sg_diff = last_sg - decodedData["sg"]
+        sg_diff = decodedData["sg"] - last_sg
         LOGGER.info("Tilt decoded: {}".format(decodedData["sg"], 3))
         LOGGER.info("Tilt last_sg: {}".format(last_sg))
         LOGGER.info("Tilt Diff: {}".format(sg_diff))
