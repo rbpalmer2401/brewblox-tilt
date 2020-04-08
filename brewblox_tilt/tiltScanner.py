@@ -228,7 +228,11 @@ class MessageHandler():
                 
         # smooth out data differences
         sg_diff = last_sg - decodedData["sg"]
-        if abs(sg_diff) > 0.01:
+        
+        if abs(sg_diff) > 0.4:
+            return
+        
+        if abs(sg_diff) > 0.1:
             decodedData["sg"] = (decodedData["sg"] - (sg_diff/2))
         
         cal_sg = self.sgCal.calValue(
