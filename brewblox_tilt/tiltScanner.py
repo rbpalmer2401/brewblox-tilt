@@ -214,21 +214,28 @@ class MessageHandler():
             
         cal_temp_c = None
         
+        if last_sg == 0:
+            last_sg = decodedData["sg"]
+        
         if cal_temp_f is not None:
             cal_temp_c = Q_(cal_temp_f, ureg.degF).to("degC").magnitude
         
-        # Return if Tilt data outside of range    
-        if decodedData["sg"] < 0.986 or decodedData["sg"] > 1.150:
+        # Return if Tilt data outside of range   
+        #LOGGER.info("Tilt data: {}".format(decodedData["sg"], 3)) 
+        if decodedData["sg"] < 0.986 or decodedData["sg"] > 1.110:
             LOGGER.info("Tilt data out of Range: {}".format(decodedData["sg"], 3))
-            if last_sg == 0.00:
-                return
-            else:
-                LOGGER.info("Repalced by last_sg: {}")
-                decodedData["sg"] = last_sg
+            return
                 
         # smooth out data differences
-        sg_diff = last_sg - decodedData["sg"]
-        if abs(sg_diff) > 0.01:
+        sg_diff = decodedData["sg"] - last_sg
+        #LOGGER.info("Tilt decoded: {}".format(decodedData["sg"], 3))
+        #LOGGER.info("Tilt last_sg: {}".format(last_sg))
+        #LOGGER.info("Tilt Diff: {}".format(sg_diff))
+        if abs(sg_diff) > 0.005:
+            LOGGER.info("Tilt diif greater than 0.005: {}".format(sg_diff)) 
+            return
+        
+        if abs(sg_diff) > 0.001:
             decodedData["sg"] = (decodedData["sg"] - (sg_diff/2))
         
         cal_sg = self.sgCal.calValue(
