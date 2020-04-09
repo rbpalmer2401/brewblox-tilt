@@ -228,9 +228,9 @@ class MessageHandler():
                 
         # smooth out data differences
         sg_diff = decodedData["sg"] - last_sg
-        LOGGER.info("Tilt decoded: {}".format(decodedData["sg"], 3))
-        LOGGER.info("Tilt last_sg: {}".format(last_sg))
-        LOGGER.info("Tilt Diff: {}".format(sg_diff))
+        #LOGGER.info("Tilt decoded: {}".format(decodedData["sg"], 3))
+        #LOGGER.info("Tilt last_sg: {}".format(last_sg))
+        #LOGGER.info("Tilt Diff: {}".format(sg_diff))
         if abs(sg_diff) > 0.005:
             LOGGER.info("Tilt diif greater than 0.005: {}".format(sg_diff)) 
             return
