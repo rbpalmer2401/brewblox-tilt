@@ -51,7 +51,7 @@ class Calibrator():
                            "values won\'t be provided.".format(file))
             return
 
-        # Load calibration CSV
+        # Load calibration CSV and continue
         with open(file, "r", newline="") as f:
             reader = csv.reader(f, delimiter=",")
             for line in reader:
